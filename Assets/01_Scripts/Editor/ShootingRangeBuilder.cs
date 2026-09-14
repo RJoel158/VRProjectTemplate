@@ -288,8 +288,8 @@ public class ShootingRangeBuilder : EditorWindow
         grab.useDynamicAttach = false;
         grab.matchAttachPosition = true;
         grab.matchAttachRotation = true;
-        grab.movementType = XRBaseInteractable.MovementType.VelocityTracking;
-        grab.throwOnDetach = false;
+        grab.movementType = XRBaseInteractable.MovementType.Instantaneous;
+        grab.throwOnDetach = true;
 
         // Script VRRifle
         VRRifle rifleComp = rifleRoot.AddComponent<VRRifle>();

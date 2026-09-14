@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class RifleSetupTool : EditorWindow
@@ -43,7 +44,6 @@ public class RifleSetupTool : EditorWindow
             return;
         }
 
-        // Material PBR
         Material rifleMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Rifle_Wood.mat");
         if (rifleMat != null)
         {
@@ -52,7 +52,7 @@ public class RifleSetupTool : EditorWindow
 
         Transform meshTransform = meshRenderer.transform;
 
-        // 3. Calcular la geometría y límites exactos de la malla en espacio local
+        // 3. Bounds y centro exactos de la malla
         Bounds bounds = meshRenderer.bounds;
         Vector3 worldCenter = bounds.center;
         Vector3 worldExtents = bounds.extents;
@@ -68,49 +68,43 @@ public class RifleSetupTool : EditorWindow
         float minZ = Mathf.Min(localMin.z, localMax.z);
         float maxZ = Mathf.Max(localMin.z, localMax.z);
 
-        // 4. Crear o Actualizar los Empties de Miras, Cañón y Agarre directamente sobre la malla
+        // 4. Empties de referencia colocados en la geometría exacta
         Transform attachPoint = GetOrCreateChild(rifleObj.transform, "AttachPoint_Grip");
         Transform muzzlePoint = GetOrCreateChild(rifleObj.transform, "MuzzlePoint");
         Transform frontSight = GetOrCreateChild(rifleObj.transform, "FrontSight");
         Transform rearSight = GetOrCreateChild(rifleObj.transform, "RearSight");
         Transform shellEjection = GetOrCreateChild(rifleObj.transform, "Shell_Ejection_Point");
 
-        // Posiciones exactas adheridas a la geometría del rifle
-        // Empuñadura (AttachPoint_Grip): donde va la mano con el dedo en el gatillo
         attachPoint.localPosition = new Vector3(localCenter.x, minY + (maxY - minY) * 0.28f, localCenter.z - (maxZ - minZ) * 0.18f);
         attachPoint.localRotation = Quaternion.identity;
 
-        // Boca del cañón (MuzzlePoint): extremo delantero por donde sale el disparo
         muzzlePoint.localPosition = new Vector3(localCenter.x, localCenter.y + (maxY - minY) * 0.12f, maxZ + 0.02f);
         muzzlePoint.localRotation = Quaternion.identity;
 
-        // Mira delantera (FrontSight): punta de mira sobre el cañón
         frontSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, maxZ - 0.04f);
         frontSight.localRotation = Quaternion.identity;
 
-        // Mira trasera (RearSight): muesca de mira sobre el cajón de mecanismos
         rearSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, localCenter.z - 0.02f);
         rearSight.localRotation = Quaternion.identity;
 
-        // Ventana de expulsión (Shell_Ejection_Point): lateral derecho
         shellEjection.localPosition = new Vector3(maxX + 0.01f, localCenter.y + (maxY - minY) * 0.1f, localCenter.z);
         shellEjection.localRotation = Quaternion.identity;
 
         // 5. Rigidbody
         Rigidbody rb = rifleObj.GetComponent<Rigidbody>();
         if (rb == null) rb = rifleObj.AddComponent<Rigidbody>();
-        rb.mass = 2.4f;
-        rb.linearDamping = 1.0f;
-        rb.angularDamping = 1.0f;
-        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        rb.mass = 1.8f;
+        rb.linearDamping = 0.5f;
+        rb.angularDamping = 0.5f;
+        rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
 
-        // 6. BoxCollider ajustado a la forma del rifle
+        // 6. BoxCollider
         BoxCollider boxCol = rifleObj.GetComponent<BoxCollider>();
         if (boxCol == null) boxCol = rifleObj.AddComponent<BoxCollider>();
         boxCol.center = localCenter;
-        boxCol.size = new Vector3(Mathf.Max(0.10f, maxX - minX), Mathf.Max(0.18f, maxY - minY), Mathf.Max(0.70f, maxZ - minZ));
+        boxCol.size = new Vector3(Mathf.Max(0.25f, (maxX - minX) * 2.0f), Mathf.Max(0.30f, maxY - minY), Mathf.Max(0.90f, maxZ - minZ));
 
-        // 7. LineRenderer para trazador de bala
+        // 7. LineRenderer
         LineRenderer tracer = rifleObj.GetComponent<LineRenderer>();
         if (tracer == null) tracer = rifleObj.AddComponent<LineRenderer>();
         tracer.enabled = false;
@@ -120,17 +114,24 @@ public class RifleSetupTool : EditorWindow
         tracer.startColor = Color.yellow;
         tracer.endColor = new Color(1f, 0.5f, 0f, 0f);
 
-        // 8. XRGrabInteractable
+        // 8. XRGrabInteractable (Instantaneous para agarre directo y sólido sin flotar)
         XRGrabInteractable grab = rifleObj.GetComponent<XRGrabInteractable>();
         if (grab == null) grab = rifleObj.AddComponent<XRGrabInteractable>();
         grab.attachTransform = attachPoint;
         grab.useDynamicAttach = false;
         grab.matchAttachPosition = true;
         grab.matchAttachRotation = true;
-        grab.movementType = XRBaseInteractable.MovementType.VelocityTracking;
-        grab.throwOnDetach = false;
+        grab.movementType = XRBaseInteractable.MovementType.Instantaneous;
+        grab.throwOnDetach = true;
+        grab.interactionLayers = ~0;
 
-        // 9. VRRifle Component
+        if (grab.colliders.Count == 0 || !grab.colliders.Contains(boxCol))
+        {
+            grab.colliders.Clear();
+            grab.colliders.Add(boxCol);
+        }
+
+        // 9. Componente VRRifle
         VRRifle rifleComp = rifleObj.GetComponent<VRRifle>();
         if (rifleComp == null) rifleComp = rifleObj.AddComponent<VRRifle>();
         rifleComp.rifleType = RifleType.SemiAutomatic;
@@ -148,7 +149,7 @@ public class RifleSetupTool : EditorWindow
 
         EditorUtility.SetDirty(rifleObj);
         Selection.activeGameObject = rifleObj;
-        Debug.Log("🎯 ¡Rifle Ruger 10/22 LR reconfigurado con Empties colocados con precisión milimétrica sobre la malla!");
+        Debug.Log("🎯 ¡Rifle Ruger 10/22 LR configurado con agarre instantáneo y disparo fluido!");
     }
 
     private static Transform GetOrCreateChild(Transform parent, string childName)

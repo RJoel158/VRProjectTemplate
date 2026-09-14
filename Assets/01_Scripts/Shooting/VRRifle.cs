@@ -19,34 +19,19 @@ public class VRRifle : MonoBehaviour
     public RifleType rifleType = RifleType.SemiAutomatic;
 
     [Header("Empties de Referencia")]
-    [Tooltip("Punto de salida del proyectil (Boca del cañón)")]
     public Transform muzzlePoint;
-
-    [Tooltip("Mira delantera (Front Sight)")]
     public Transform frontSight;
-
-    [Tooltip("Mira trasera (Rear Sight)")]
     public Transform rearSight;
-
-    [Tooltip("Punto de agarre principal en la empuñadura")]
     public Transform attachPoint;
-
-    [Tooltip("Ventana de expulsión de casquillos")]
     public Transform shellEjectionPoint;
-
-    [Tooltip("Nodo del modelo para retroceso")]
     public Transform modelRoot;
 
-    [Header("Modo Bodycam / ADS (Aim Down Sights)")]
-    [Tooltip("Si está activo el modo de alineación Bodycam con la cámara")]
+    [Header("Modo Bodycam / ADS")]
     public bool enableBodycamAim = true;
     public bool isAimingDownSights = false;
-    [Tooltip("Distancia de la mira al ojo del jugador en modo Bodycam")]
     public float bodycamEyeDistance = 0.28f;
-    [Tooltip("Desplazamiento hacia el ojo dominante derecho")]
     public float eyeOffsetRight = 0.035f;
-    [Tooltip("Velocidad de transición al apuntar")]
-    public float aimLerpSpeed = 14f;
+    public float aimLerpSpeed = 16f;
 
     [Header("Balística y Disparo")]
     public float maxRange = 300f;
@@ -54,18 +39,18 @@ public class VRRifle : MonoBehaviour
     public float bulletImpactForce = 60f;
     public LayerMask hitLayers = ~0;
 
-    [Header("Sistema de Munición")]
+    [Header("Munición")]
     public int magazineCapacity = 10;
     public int currentAmmo = 10;
     public bool infiniteAmmo = true;
     public float reloadDuration = 1.5f;
     public bool isReloading = false;
 
-    [Header("Retroceso Procedural (Bodycam Recoil)")]
+    [Header("Retroceso Procedural (Bodycam)")]
     public float recoilKickBack = 0.035f;
     public float recoilKickUp = 3.5f;
     public float recoilKickSide = 0.6f;
-    public float recoilReturnSpeed = 16f;
+    public float recoilReturnSpeed = 18f;
 
     [Header("Feedback")]
     [Range(0f, 1f)] public float fireHapticIntensity = 0.85f;
@@ -97,15 +82,21 @@ public class VRRifle : MonoBehaviour
 
         playerCam = Camera.main;
 
+        // Configuración óptima para agarre instantáneo y sólido en VR
+        if (grabInteractable != null)
+        {
+            grabInteractable.movementType = XRBaseInteractable.MovementType.Instantaneous;
+            grabInteractable.useDynamicAttach = false;
+            grabInteractable.matchAttachPosition = true;
+            grabInteractable.matchAttachRotation = true;
+            grabInteractable.throwOnDetach = true;
+            if (attachPoint != null) grabInteractable.attachTransform = attachPoint;
+        }
+
         if (modelRoot != null)
         {
             initialModelLocalPos = modelRoot.localPosition;
             initialModelLocalRot = modelRoot.localRotation;
-        }
-
-        if (attachPoint != null)
-        {
-            grabInteractable.attachTransform = attachPoint;
         }
 
         currentAmmo = magazineCapacity;
@@ -116,6 +107,8 @@ public class VRRifle : MonoBehaviour
         if (grabInteractable != null)
         {
             grabInteractable.activated.AddListener(OnTriggerPulled);
+            grabInteractable.selectEntered.AddListener(OnGrabbed);
+            grabInteractable.selectExited.AddListener(OnReleased);
         }
     }
 
@@ -124,6 +117,29 @@ public class VRRifle : MonoBehaviour
         if (grabInteractable != null)
         {
             grabInteractable.activated.RemoveListener(OnTriggerPulled);
+            grabInteractable.selectEntered.RemoveListener(OnGrabbed);
+            grabInteractable.selectExited.RemoveListener(OnReleased);
+        }
+    }
+
+    private void OnGrabbed(SelectEnterEventArgs args)
+    {
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+    }
+
+    private void OnReleased(SelectExitEventArgs args)
+    {
+        isAimingDownSights = false;
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
         }
     }
 
@@ -131,7 +147,7 @@ public class VRRifle : MonoBehaviour
     {
         if (playerCam == null) playerCam = Camera.main;
 
-        // Recuperación de retroceso procedural
+        // Recuperación suave de retroceso procedural
         if (modelRoot != null)
         {
             currentRecoilPos = Vector3.Lerp(currentRecoilPos, Vector3.zero, Time.deltaTime * recoilReturnSpeed);
@@ -141,12 +157,12 @@ public class VRRifle : MonoBehaviour
             modelRoot.localRotation = initialModelLocalRot * Quaternion.Euler(currentRecoilRot);
         }
 
-        // Comprobar si el rifle está en la mano del jugador
+        // Comprobaciones cuando el rifle está sostenido
         if (grabInteractable != null && grabInteractable.isSelected)
         {
             HandleInputs();
 
-            // Mecánica Bodycam ADS: Si está apuntando, alinear automáticamente miras con el ojo
+            // Modo Bodycam ADS
             if (enableBodycamAim && isAimingDownSights && playerCam != null)
             {
                 ApplyBodycamAimAlignment();
@@ -156,16 +172,36 @@ public class VRRifle : MonoBehaviour
 
     private void HandleInputs()
     {
-        // Tecla 'R' para recargar en teclado / Simulator
+        // Tecla 'R' para recargar
         if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
         {
             TryReload();
         }
 
-        // Tecla 'Space' o Botón secundario para activar/desactivar modo Bodycam ADS
-        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+        // Teclas 'F', 'Z', 'Space' o Clic Derecho para alternar modo Bodycam ADS
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.fKey.wasPressedThisFrame || 
+                Keyboard.current.zKey.wasPressedThisFrame || 
+                Keyboard.current.spaceKey.wasPressedThisFrame)
+            {
+                isAimingDownSights = !isAimingDownSights;
+            }
+        }
+
+        if (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame)
         {
             isAimingDownSights = !isAimingDownSights;
+        }
+
+        // Clic izquierdo o tecla 'T' dispara si está sostenido
+        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        {
+            TryFire();
+        }
+        else if (Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame)
+        {
+            TryFire();
         }
     }
 
@@ -173,18 +209,13 @@ public class VRRifle : MonoBehaviour
     {
         if (frontSight == null || rearSight == null || playerCam == null) return;
 
-        // Calcular la posición objetivo en frente del ojo derecho de la cámara
         Vector3 eyePos = playerCam.transform.position + (playerCam.transform.right * eyeOffsetRight) + (playerCam.transform.forward * bodycamEyeDistance);
         Vector3 aimDirection = playerCam.transform.forward;
 
-        // Rotación objetivo: que las miras apunten en la dirección de la cámara
         Quaternion targetRotation = Quaternion.LookRotation(aimDirection, playerCam.transform.up);
-
-        // Compensación de offset de la mira trasera
         Vector3 sightOffsetInRifle = rearSight.position - transform.position;
         Vector3 targetPosition = eyePos - sightOffsetInRifle;
 
-        // Lerp suave para la sensación inmersiva de Bodycam
         transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * aimLerpSpeed);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * aimLerpSpeed);
     }
@@ -214,22 +245,14 @@ public class VRRifle : MonoBehaviour
     {
         if (!infiniteAmmo) currentAmmo--;
 
-        // 1. Audio de disparo
         PlayGunshotAudio();
 
-        // 2. Muzzle Flash
         if (muzzleFlash != null) muzzleFlash.Play();
 
-        // 3. Vibración Háptica
         SendHaptics(fireHapticIntensity, fireHapticDuration);
-
-        // 4. Retroceso Procedural Inmersivo (Bodycam)
         ApplyProceduralRecoil();
-
-        // 5. Expulsión de casquillo
         EjectShellCasing();
 
-        // 6. Raycast de balística de alta precisión
         Vector3 origin = muzzlePoint != null ? muzzlePoint.position : transform.position;
         Vector3 direction = muzzlePoint != null ? muzzlePoint.forward : transform.forward;
 
@@ -258,7 +281,6 @@ public class VRRifle : MonoBehaviour
             }
         }
 
-        // 7. Trazador de bala
         if (tracerLineRenderer != null)
         {
             StartCoroutine(ShowTracerRoutine(origin, hitPoint));
