@@ -82,6 +82,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 692b6be425977384598fc83a99cab38e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4131554050237900645}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 692b6be425977384598fc83a99cab38e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -7691104514096677159}
   m_SourcePrefab: {fileID: 100100000, guid: 692b6be425977384598fc83a99cab38e, type: 3}
 --- !u!1 &4206658781391371089 stripped
 GameObject:
@@ -138,3 +141,16 @@ CapsuleCollider:
   m_Height: 0.39
   m_Direction: 2
   m_Center: {x: 0.0003983993, y: 0.00035329917, z: -0.00032890597}
+--- !u!114 &-7691104514096677159
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4206658781391371089}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 992e81d3855ed89449730a775c2a84a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PinFallDetector
+  fallAngleThreshold: 45
