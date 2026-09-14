@@ -35,9 +35,16 @@ public class VRRifle : MonoBehaviour
     [Header("Modo Bodycam / ADS")]
     public bool enableBodycamAim = true;
     public bool isAimingDownSights = false;
-    public float bodycamEyeDistance = 0.28f;
-    public float eyeOffsetRight = 0.035f;
-    public float aimLerpSpeed = 16f;
+    public float bodycamEyeDistance = 0.26f;
+    public float eyeOffsetRight = 0.0f;
+    public float eyeOffsetUp = -0.012f;
+    public float aimLerpSpeed = 22f;
+    public bool enableMouseLookInADS = true;
+    public float mouseSensitivity = 1.8f;
+
+    private float camPitch = 0f;
+    private float camYaw = 0f;
+    private bool wasAimingLastFrame = false;
 
     [Header("Balística y Disparo")]
     public float maxRange = 300f;
@@ -243,14 +250,42 @@ public class VRRifle : MonoBehaviour
         {
             HandleInputs();
 
-            // Si está en modo Toggle y el interactor se soltó en el simulador, mantener posición fija en la mano
-            if (isHeld && currentHoldingInteractor != null && (grabInteractable != null && !grabInteractable.isSelected))
+            // Modo Bodycam ADS
+            if (enableBodycamAim && isAimingDownSights && playerCam != null)
             {
-                Transform handTransform = currentHoldingInteractor.GetAttachTransform(grabInteractable);
-                if (handTransform == null) handTransform = currentHoldingInteractor.transform;
-
-                if (!isAimingDownSights)
+                if (!wasAimingLastFrame)
                 {
+                    Vector3 euler = playerCam.transform.eulerAngles;
+                    camPitch = euler.x > 180f ? euler.x - 360f : euler.x;
+                    camYaw = euler.y;
+                }
+
+                if (enableMouseLookInADS && Mouse.current != null)
+                {
+                    Vector2 mouseDelta = Mouse.current.delta.ReadValue();
+                    if (mouseDelta.sqrMagnitude > 0.0001f)
+                    {
+                        camYaw += mouseDelta.x * mouseSensitivity * 0.12f;
+                        camPitch -= mouseDelta.y * mouseSensitivity * 0.12f;
+                        camPitch = Mathf.Clamp(camPitch, -75f, 75f);
+
+                        playerCam.transform.rotation = Quaternion.Euler(camPitch, camYaw, 0f);
+                    }
+                }
+
+                ApplyBodycamAimAlignment();
+                wasAimingLastFrame = true;
+            }
+            else
+            {
+                wasAimingLastFrame = false;
+
+                // Si está en modo Toggle y el interactor se soltó en el simulador, mantener posición fija en la mano
+                if (isHeld && currentHoldingInteractor != null && (grabInteractable != null && !grabInteractable.isSelected))
+                {
+                    Transform handTransform = currentHoldingInteractor.GetAttachTransform(grabInteractable);
+                    if (handTransform == null) handTransform = currentHoldingInteractor.transform;
+
                     if (attachPoint != null)
                     {
                         Quaternion rotDiff = handTransform.rotation * Quaternion.Inverse(attachPoint.rotation);
@@ -264,12 +299,10 @@ public class VRRifle : MonoBehaviour
                     }
                 }
             }
-
-            // Modo Bodycam ADS
-            if (enableBodycamAim && isAimingDownSights && playerCam != null)
-            {
-                ApplyBodycamAimAlignment();
-            }
+        }
+        else
+        {
+            wasAimingLastFrame = false;
         }
     }
 
@@ -342,12 +375,25 @@ public class VRRifle : MonoBehaviour
     {
         if (frontSight == null || rearSight == null || playerCam == null) return;
 
-        Vector3 eyePos = playerCam.transform.position + (playerCam.transform.right * eyeOffsetRight) + (playerCam.transform.forward * bodycamEyeDistance);
-        Vector3 aimDirection = playerCam.transform.forward;
+        Vector3 eyePos = playerCam.transform.position 
+            + (playerCam.transform.right * eyeOffsetRight) 
+            + (playerCam.transform.up * eyeOffsetUp) 
+            + (playerCam.transform.forward * bodycamEyeDistance);
 
+        Vector3 aimDirection = playerCam.transform.forward;
         Quaternion targetRotation = Quaternion.LookRotation(aimDirection, playerCam.transform.up);
-        Vector3 sightOffsetInRifle = rearSight.position - transform.position;
-        Vector3 targetPosition = eyePos - sightOffsetInRifle;
+
+        Vector3 localSightDir = (frontSight.position - rearSight.position);
+        Vector3 localSightDirInRifle = transform.InverseTransformDirection(localSightDir).normalized;
+        if (localSightDirInRifle.sqrMagnitude > 0.001f)
+        {
+            Quaternion sightToForward = Quaternion.FromToRotation(localSightDirInRifle, Vector3.forward);
+            targetRotation = targetRotation * Quaternion.Inverse(sightToForward);
+        }
+
+        Vector3 localRearSight = transform.InverseTransformPoint(rearSight.position);
+        Vector3 rotatedRearOffset = targetRotation * localRearSight;
+        Vector3 targetPosition = eyePos - rotatedRearOffset;
 
         transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * aimLerpSpeed);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * aimLerpSpeed);
