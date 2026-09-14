@@ -276,13 +276,14 @@ public class ShootingRangeBuilder : EditorWindow
         frontSightObj.transform.localRotation = Quaternion.identity;
 
         // Trazador de bala
+        Material tracerMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Bullet_Tracer.mat");
+        Material shellMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Bullet_Shell.mat");
+
         LineRenderer tracer = rifleRoot.AddComponent<LineRenderer>();
         tracer.enabled = false;
         tracer.startWidth = 0.015f;
         tracer.endWidth = 0.008f;
-        tracer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
-        tracer.startColor = Color.yellow;
-        tracer.endColor = new Color(1f, 0.45f, 0f, 0f);
+        if (tracerMat != null) tracer.sharedMaterial = tracerMat;
 
         // XRGrabInteractable
         XRGrabInteractable grab = rifleRoot.AddComponent<XRGrabInteractable>();
@@ -303,7 +304,9 @@ public class ShootingRangeBuilder : EditorWindow
         rifleComp.shellEjectionPoint = shellPoint.transform;
         rifleComp.modelRoot = modelRoot.transform;
         rifleComp.tracerLineRenderer = tracer;
-        rifleComp.maxRange = 200f;
+        rifleComp.tracerMaterial = tracerMat;
+        rifleComp.shellMaterial = shellMat;
+        rifleComp.maxRange = 250f;
         rifleComp.magazineCapacity = rifleType == RifleType.SemiAutomatic ? 10 : 5;
         rifleComp.infiniteAmmo = true;
 

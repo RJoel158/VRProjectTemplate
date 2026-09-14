@@ -202,14 +202,15 @@ public class RifleSetupTool : EditorWindow
         boxCol.center = localCenter;
         boxCol.size = new Vector3(Mathf.Max(0.14f, maxX - minX + 0.04f), Mathf.Max(0.24f, maxY - minY + 0.04f), Mathf.Max(0.90f, maxZ - minZ + 0.04f));
 
+        Material tracerMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Bullet_Tracer.mat");
+        Material shellMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Bullet_Shell.mat");
+
         LineRenderer tracer = rifleObj.GetComponent<LineRenderer>();
         if (tracer == null) tracer = rifleObj.AddComponent<LineRenderer>();
         tracer.enabled = false;
         tracer.startWidth = 0.012f;
         tracer.endWidth = 0.006f;
-        tracer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
-        tracer.startColor = Color.yellow;
-        tracer.endColor = new Color(1f, 0.5f, 0f, 0f);
+        if (tracerMat != null) tracer.sharedMaterial = tracerMat;
 
         XRGrabInteractable grab = rifleObj.GetComponent<XRGrabInteractable>();
         if (grab == null) grab = rifleObj.AddComponent<XRGrabInteractable>();
@@ -239,6 +240,8 @@ public class RifleSetupTool : EditorWindow
         rifleComp.shellEjectionPoint = shellEjection;
         rifleComp.modelRoot = meshTransform;
         rifleComp.tracerLineRenderer = tracer;
+        rifleComp.tracerMaterial = tracerMat;
+        rifleComp.shellMaterial = shellMat;
         rifleComp.enableBodycamAim = true;
         rifleComp.maxRange = 250f;
         rifleComp.magazineCapacity = 10;

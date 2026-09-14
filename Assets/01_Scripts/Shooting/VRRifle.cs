@@ -58,15 +58,19 @@ public class VRRifle : MonoBehaviour
     public float recoilKickSide = 0.6f;
     public float recoilReturnSpeed = 18f;
 
+    [Header("Materiales y Efectos")]
+    public Material tracerMaterial;
+    public Material shellMaterial;
+    public ParticleSystem muzzleFlash;
+    public LineRenderer tracerLineRenderer;
+    public float tracerDuration = 0.04f;
+
     [Header("Feedback")]
     [Range(0f, 1f)] public float fireHapticIntensity = 0.85f;
     public float fireHapticDuration = 0.12f;
     public AudioClip fireAudioClip;
     public AudioClip reloadAudioClip;
     public AudioClip emptyAudioClip;
-    public ParticleSystem muzzleFlash;
-    public LineRenderer tracerLineRenderer;
-    public float tracerDuration = 0.04f;
 
     private XRGrabInteractable grabInteractable;
     private AudioSource audioSource;
@@ -78,17 +82,18 @@ public class VRRifle : MonoBehaviour
     private Vector3 currentRecoilPos;
     private Vector3 currentRecoilRot;
 
+    private XRBaseInteractor currentHoldingInteractor;
+    private bool isHeld = false;
+    private bool explicitDropRequested = false;
+
     private void OnValidate()
     {
+        AutoLocateReferences();
         if (modelRoot != null && !Application.isPlaying)
         {
             modelRoot.localEulerAngles = modelRotationOffset;
         }
     }
-
-    private XRBaseInteractor currentHoldingInteractor;
-    private bool isHeld = false;
-    private bool explicitDropRequested = false;
 
     private void Awake()
     {
@@ -98,6 +103,8 @@ public class VRRifle : MonoBehaviour
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
         playerCam = Camera.main;
+
+        AutoLocateReferences();
 
         // Configuración óptima para agarre instantáneo y sólido en VR
         if (grabInteractable != null)
@@ -116,7 +123,51 @@ public class VRRifle : MonoBehaviour
             modelRoot.localEulerAngles = modelRotationOffset;
         }
 
+        if (tracerLineRenderer == null) tracerLineRenderer = GetComponent<LineRenderer>();
+        if (tracerLineRenderer != null && tracerMaterial != null)
+        {
+            tracerLineRenderer.sharedMaterial = tracerMaterial;
+        }
+
         currentAmmo = magazineCapacity;
+    }
+
+    public void AutoLocateReferences()
+    {
+        if (modelRoot == null)
+        {
+            Transform found = transform.Find("Model_Root") ?? transform.Find("Rifle_Mesh_Model");
+            if (found != null) modelRoot = found;
+            else
+            {
+                MeshRenderer mr = GetComponentInChildren<MeshRenderer>();
+                if (mr != null) modelRoot = mr.transform;
+            }
+        }
+
+        Transform searchRoot = modelRoot != null ? modelRoot : transform;
+
+        if (muzzlePoint == null)
+            muzzlePoint = searchRoot.Find("MuzzlePoint") ?? transform.Find("MuzzlePoint");
+
+        if (shellEjectionPoint == null)
+            shellEjectionPoint = searchRoot.Find("Shell_Ejection_Point") ?? transform.Find("Shell_Ejection_Point");
+
+        if (frontSight == null)
+            frontSight = searchRoot.Find("FrontSight") ?? transform.Find("FrontSight");
+
+        if (rearSight == null)
+            rearSight = searchRoot.Find("RearSight") ?? transform.Find("RearSight");
+
+        if (attachPoint == null)
+            attachPoint = transform.Find("AttachPoint_Grip") ?? searchRoot.Find("AttachPoint_Grip");
+
+#if UNITY_EDITOR
+        if (tracerMaterial == null)
+            tracerMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Bullet_Tracer.mat");
+        if (shellMaterial == null)
+            shellMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Bullet_Shell.mat");
+#endif
     }
 
     private void OnEnable()
@@ -386,8 +437,15 @@ public class VRRifle : MonoBehaviour
         shell.transform.rotation = Random.rotation;
         shell.transform.localScale = new Vector3(0.008f, 0.012f, 0.008f);
 
-        Material matGold = shell.GetComponent<MeshRenderer>().material;
-        matGold.color = new Color(0.9f, 0.75f, 0.2f);
+        MeshRenderer shellMr = shell.GetComponent<MeshRenderer>();
+        if (shellMaterial != null)
+        {
+            shellMr.sharedMaterial = shellMaterial;
+        }
+        else if (shellMr != null && shellMr.material != null)
+        {
+            shellMr.material.color = new Color(0.95f, 0.78f, 0.32f);
+        }
 
         Rigidbody shellRb = shell.AddComponent<Rigidbody>();
         shellRb.mass = 0.01f;
@@ -474,10 +532,58 @@ public class VRRifle : MonoBehaviour
 
     private IEnumerator ShowTracerRoutine(Vector3 start, Vector3 end)
     {
+        if (tracerMaterial != null && tracerLineRenderer.sharedMaterial != tracerMaterial)
+        {
+            tracerLineRenderer.sharedMaterial = tracerMaterial;
+        }
+
         tracerLineRenderer.enabled = true;
         tracerLineRenderer.SetPosition(0, start);
         tracerLineRenderer.SetPosition(1, end);
         yield return new WaitForSeconds(tracerDuration);
         tracerLineRenderer.enabled = false;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        // 🔴 Boca del cañón (Muzzle)
+        if (muzzlePoint != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(muzzlePoint.position, 0.02f);
+            Gizmos.DrawRay(muzzlePoint.position, muzzlePoint.forward * 0.5f);
+        }
+
+        // 🟡 Ventana de expulsión (Ejection)
+        if (shellEjectionPoint != null)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(shellEjectionPoint.position, 0.015f);
+            Gizmos.DrawRay(shellEjectionPoint.position, shellEjectionPoint.right * 0.2f);
+        }
+
+        // 🟢 Miras de hierro (Sights)
+        if (frontSight != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(frontSight.position, 0.01f);
+        }
+        if (rearSight != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(rearSight.position, 0.01f);
+        }
+        if (frontSight != null && rearSight != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawLine(rearSight.position, frontSight.position);
+        }
+
+        // 🔵 Punto de agarre (Grip)
+        if (attachPoint != null)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(attachPoint.position, 0.025f);
+        }
     }
 }
