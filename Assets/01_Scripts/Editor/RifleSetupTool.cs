@@ -6,13 +6,107 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class RifleSetupTool : EditorWindow
 {
+    private GameObject targetRifle;
+    private float currentYaw = -90f;
+    private bool toggleGrab = true;
+
+    [MenuItem("VR Sports/Calibración y Orientación de Rifle VR")]
+    public static void ShowWindow()
+    {
+        var window = GetWindow<RifleSetupTool>("Calibración Rifle VR");
+        window.minSize = new Vector2(380, 480);
+    }
+
     [MenuItem("VR Sports/Configurar Rifle en Escena (Empties + Miras + XR)")]
     public static void SetupRifleInScene()
     {
-        // 1. Buscar el objeto del rifle en la escena
-        GameObject rifleObj = GameObject.Find("Meshy_AI_Wooden_Rifle_0914021154_texture");
-        if (rifleObj == null) rifleObj = GameObject.Find("Rifle_Ruger_1022LR");
+        SetupRifleInternal(-90f, true);
+    }
 
+    private void OnGUI()
+    {
+        GUILayout.Space(10);
+        EditorGUILayout.LabelField("🎯 Calibración de Rifle VR (Orientación y Agarre)", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("Esta herramienta calibra la orientación 3D del rifle, sus miras de hierro, el punto de agarre ergonómico y el modo de agarre (Toggle / Hold).", MessageType.Info);
+
+        GUILayout.Space(10);
+        targetRifle = (GameObject)EditorGUILayout.ObjectField("Objeto Rifle:", targetRifle != null ? targetRifle : FindRifleInScene(), typeof(GameObject), true);
+
+        GUILayout.Space(10);
+        EditorGUILayout.LabelField("1. Orientación del Cañón (Giro Y):", EditorStyles.boldLabel);
+        
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("0° (Original)", GUILayout.Height(30)))
+        {
+            ApplyRotation(0f);
+        }
+        if (GUILayout.Button("90° (Derecha)", GUILayout.Height(30)))
+        {
+            ApplyRotation(90f);
+        }
+        if (GUILayout.Button("180° (Atrás)", GUILayout.Height(30)))
+        {
+            ApplyRotation(180f);
+        }
+        if (GUILayout.Button("⭐ -90° / 270° (Frente)", GUILayout.Height(30)))
+        {
+            ApplyRotation(-90f);
+        }
+        EditorGUILayout.EndHorizontal();
+
+        GUILayout.Space(10);
+        currentYaw = EditorGUILayout.Slider("Ángulo Yaw Manual:", currentYaw, -180f, 180f);
+        if (GUILayout.Button("Aplicar Ángulo Manual"))
+        {
+            ApplyRotation(currentYaw);
+        }
+
+        GUILayout.Space(15);
+        EditorGUILayout.LabelField("2. Modo de Agarre:", EditorStyles.boldLabel);
+        toggleGrab = EditorGUILayout.Toggle("Modo Toggle (1 Clic Agarra / 1 Clic Suelta)", toggleGrab);
+
+        GUILayout.Space(15);
+        GUI.backgroundColor = new Color(0.2f, 0.8f, 0.3f);
+        if (GUILayout.Button("🎯 RECONFIGURAR Y ALINEAR RIFLE COMPLETO", GUILayout.Height(40)))
+        {
+            SetupRifleInternal(currentYaw, toggleGrab);
+        }
+        GUI.backgroundColor = Color.white;
+    }
+
+    private void ApplyRotation(float yawAngle)
+    {
+        currentYaw = yawAngle;
+        GameObject rifle = targetRifle != null ? targetRifle : FindRifleInScene();
+        if (rifle == null) return;
+
+        VRRifle rifleComp = rifle.GetComponent<VRRifle>();
+        if (rifleComp != null)
+        {
+            rifleComp.modelRotationOffset = new Vector3(0, yawAngle, 0);
+            if (rifleComp.modelRoot != null)
+            {
+                rifleComp.modelRoot.localEulerAngles = new Vector3(0, yawAngle, 0);
+                EditorUtility.SetDirty(rifleComp.modelRoot);
+            }
+            EditorUtility.SetDirty(rifleComp);
+        }
+        else
+        {
+            MeshRenderer mr = rifle.GetComponentInChildren<MeshRenderer>();
+            if (mr != null)
+            {
+                mr.transform.localEulerAngles = new Vector3(0, yawAngle, 0);
+                EditorUtility.SetDirty(mr.transform);
+            }
+        }
+        Debug.Log($"🎯 Orientación del rifle actualizada a {yawAngle}° en Y.");
+    }
+
+    private static GameObject FindRifleInScene()
+    {
+        GameObject rifleObj = GameObject.Find("Rifle_Ruger_1022LR");
+        if (rifleObj == null) rifleObj = GameObject.Find("Meshy_AI_Wooden_Rifle_0914021154_texture");
         if (rifleObj == null)
         {
             GameObject[] allGOs = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
@@ -20,12 +114,16 @@ public class RifleSetupTool : EditorWindow
             {
                 if (go.name.Contains("Wooden_Rifle") || go.name.Contains("Ruger") || go.name.Contains("1022"))
                 {
-                    rifleObj = go;
-                    break;
+                    return go;
                 }
             }
         }
+        return rifleObj;
+    }
 
+    private static void SetupRifleInternal(float yaw, bool isToggle)
+    {
+        GameObject rifleObj = FindRifleInScene();
         if (rifleObj == null)
         {
             EditorUtility.DisplayDialog("Configurar Rifle", "No se encontró ningún objeto de rifle en la escena.", "OK");
@@ -33,10 +131,8 @@ public class RifleSetupTool : EditorWindow
         }
 
         Undo.RegisterFullObjectHierarchyUndo(rifleObj, "Configurar Rifle VR");
-
         rifleObj.name = "Rifle_Ruger_1022LR";
 
-        // 2. Obtener el MeshRenderer del modelo 3D
         MeshRenderer meshRenderer = rifleObj.GetComponentInChildren<MeshRenderer>();
         if (meshRenderer == null)
         {
@@ -51,10 +147,8 @@ public class RifleSetupTool : EditorWindow
         }
 
         Transform meshTransform = meshRenderer.transform;
-        // La malla de Meshy AI viene orientada a lo largo del eje X (+90°); rotamos -90° en Y para que apunte hacia adelante (+Z)
-        meshTransform.localRotation = Quaternion.Euler(0, -90f, 0);
+        meshTransform.localRotation = Quaternion.Euler(0, yaw, 0);
 
-        // 3. Bounds y centro exactos de la malla alineada
         Bounds bounds = meshRenderer.bounds;
         Vector3 worldCenter = bounds.center;
         Vector3 worldExtents = bounds.extents;
@@ -70,34 +164,27 @@ public class RifleSetupTool : EditorWindow
         float minZ = Mathf.Min(localMin.z, localMax.z);
         float maxZ = Mathf.Max(localMin.z, localMax.z);
 
-        // 4. Empties de referencia colocados en la geometría exacta
         Transform attachPoint = GetOrCreateChild(rifleObj.transform, "AttachPoint_Grip");
         Transform muzzlePoint = GetOrCreateChild(rifleObj.transform, "MuzzlePoint");
         Transform frontSight = GetOrCreateChild(rifleObj.transform, "FrontSight");
         Transform rearSight = GetOrCreateChild(rifleObj.transform, "RearSight");
         Transform shellEjection = GetOrCreateChild(rifleObj.transform, "Shell_Ejection_Point");
 
-        // Empuñadura ergonómica bajo el gatillo
         attachPoint.localPosition = new Vector3(localCenter.x, minY + (maxY - minY) * 0.32f, minZ + (maxZ - minZ) * 0.38f);
         attachPoint.localRotation = Quaternion.identity;
 
-        // Punta del cañón apuntando al frente (+Z)
         muzzlePoint.localPosition = new Vector3(localCenter.x, minY + (maxY - minY) * 0.65f, maxZ + 0.02f);
         muzzlePoint.localRotation = Quaternion.identity;
 
-        // Mira frontal
         frontSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, maxZ - 0.05f);
         frontSight.localRotation = Quaternion.identity;
 
-        // Mira trasera
         rearSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, localCenter.z - 0.04f);
         rearSight.localRotation = Quaternion.identity;
 
-        // Expulsor de casquillos al costado derecho
         shellEjection.localPosition = new Vector3(maxX + 0.015f, minY + (maxY - minY) * 0.65f, localCenter.z + 0.04f);
         shellEjection.localRotation = Quaternion.identity;
 
-        // 5. Rigidbody
         Rigidbody rb = rifleObj.GetComponent<Rigidbody>();
         if (rb == null) rb = rifleObj.AddComponent<Rigidbody>();
         rb.mass = 2.0f;
@@ -105,13 +192,11 @@ public class RifleSetupTool : EditorWindow
         rb.angularDamping = 0.5f;
         rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
 
-        // 6. BoxCollider
         BoxCollider boxCol = rifleObj.GetComponent<BoxCollider>();
         if (boxCol == null) boxCol = rifleObj.AddComponent<BoxCollider>();
         boxCol.center = localCenter;
         boxCol.size = new Vector3(Mathf.Max(0.14f, maxX - minX + 0.04f), Mathf.Max(0.24f, maxY - minY + 0.04f), Mathf.Max(0.90f, maxZ - minZ + 0.04f));
 
-        // 7. LineRenderer
         LineRenderer tracer = rifleObj.GetComponent<LineRenderer>();
         if (tracer == null) tracer = rifleObj.AddComponent<LineRenderer>();
         tracer.enabled = false;
@@ -121,7 +206,6 @@ public class RifleSetupTool : EditorWindow
         tracer.startColor = Color.yellow;
         tracer.endColor = new Color(1f, 0.5f, 0f, 0f);
 
-        // 8. XRGrabInteractable (Instantaneous para agarre directo y sólido sin flotar)
         XRGrabInteractable grab = rifleObj.GetComponent<XRGrabInteractable>();
         if (grab == null) grab = rifleObj.AddComponent<XRGrabInteractable>();
         grab.attachTransform = attachPoint;
@@ -138,9 +222,10 @@ public class RifleSetupTool : EditorWindow
             grab.colliders.Add(boxCol);
         }
 
-        // 9. Componente VRRifle
         VRRifle rifleComp = rifleObj.GetComponent<VRRifle>();
         if (rifleComp == null) rifleComp = rifleObj.AddComponent<VRRifle>();
+        rifleComp.modelRotationOffset = new Vector3(0, yaw, 0);
+        rifleComp.toggleGrabMode = isToggle;
         rifleComp.rifleType = RifleType.SemiAutomatic;
         rifleComp.muzzlePoint = muzzlePoint;
         rifleComp.frontSight = frontSight;
@@ -156,7 +241,7 @@ public class RifleSetupTool : EditorWindow
 
         EditorUtility.SetDirty(rifleObj);
         Selection.activeGameObject = rifleObj;
-        Debug.Log("🎯 ¡Rifle Ruger 10/22 LR configurado con agarre instantáneo y disparo fluido!");
+        Debug.Log($"🎯 ¡Rifle calibrado exitosamente con rotación {yaw}° y agarre Toggle={isToggle}!");
     }
 
     private static Transform GetOrCreateChild(Transform parent, string childName)

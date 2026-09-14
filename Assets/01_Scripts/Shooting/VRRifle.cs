@@ -12,9 +12,12 @@ public enum RifleType
 }
 
 [RequireComponent(typeof(XRGrabInteractable))]
-[RequireComponent(typeof(Rigidbody))]
-public class VRRifle : MonoBehaviour
-{
+    [Header("Alineación y Orientación")]
+    public Vector3 modelRotationOffset = new Vector3(0, -90f, 0);
+    public Vector3 gripOffsetPosition = Vector3.zero;
+    public Vector3 gripOffsetRotation = Vector3.zero;
+    public bool toggleGrabMode = true;
+
     [Header("Tipo de Rifle")]
     public RifleType rifleType = RifleType.SemiAutomatic;
 
@@ -69,9 +72,16 @@ public class VRRifle : MonoBehaviour
     private float nextFireTime = 0f;
 
     private Vector3 initialModelLocalPos;
-    private Quaternion initialModelLocalRot;
     private Vector3 currentRecoilPos;
     private Vector3 currentRecoilRot;
+
+    private void OnValidate()
+    {
+        if (modelRoot != null && !Application.isPlaying)
+        {
+            modelRoot.localEulerAngles = modelRotationOffset;
+        }
+    }
 
     private void Awake()
     {
@@ -96,7 +106,7 @@ public class VRRifle : MonoBehaviour
         if (modelRoot != null)
         {
             initialModelLocalPos = modelRoot.localPosition;
-            initialModelLocalRot = modelRoot.localRotation;
+            modelRoot.localEulerAngles = modelRotationOffset;
         }
 
         currentAmmo = magazineCapacity;
@@ -154,7 +164,7 @@ public class VRRifle : MonoBehaviour
             currentRecoilRot = Vector3.Lerp(currentRecoilRot, Vector3.zero, Time.deltaTime * recoilReturnSpeed);
 
             modelRoot.localPosition = initialModelLocalPos + currentRecoilPos;
-            modelRoot.localRotation = initialModelLocalRot * Quaternion.Euler(currentRecoilRot);
+            modelRoot.localRotation = Quaternion.Euler(modelRotationOffset) * Quaternion.Euler(currentRecoilRot);
         }
 
         // Comprobaciones cuando el rifle está sostenido
@@ -170,8 +180,27 @@ public class VRRifle : MonoBehaviour
         }
     }
 
+    public void DropWeapon()
+    {
+        if (grabInteractable != null && grabInteractable.isSelected)
+        {
+            var interactor = grabInteractable.firstInteractorSelecting;
+            if (interactor != null && grabInteractable.interactionManager != null)
+            {
+                grabInteractable.interactionManager.SelectExit(interactor, grabInteractable);
+            }
+        }
+    }
+
     private void HandleInputs()
     {
+        // Tecla 'G' o 'E' para soltar en modo Toggle
+        if (Keyboard.current != null && (Keyboard.current.gKey.wasPressedThisFrame || Keyboard.current.eKey.wasPressedThisFrame))
+        {
+            DropWeapon();
+            return;
+        }
+
         // Tecla 'R' para recargar
         if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
         {
