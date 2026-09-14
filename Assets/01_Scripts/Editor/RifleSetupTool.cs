@@ -51,8 +51,10 @@ public class RifleSetupTool : EditorWindow
         }
 
         Transform meshTransform = meshRenderer.transform;
+        // La malla de Meshy AI viene orientada a lo largo del eje X (+90°); rotamos -90° en Y para que apunte hacia adelante (+Z)
+        meshTransform.localRotation = Quaternion.Euler(0, -90f, 0);
 
-        // 3. Bounds y centro exactos de la malla
+        // 3. Bounds y centro exactos de la malla alineada
         Bounds bounds = meshRenderer.bounds;
         Vector3 worldCenter = bounds.center;
         Vector3 worldExtents = bounds.extents;
@@ -75,25 +77,30 @@ public class RifleSetupTool : EditorWindow
         Transform rearSight = GetOrCreateChild(rifleObj.transform, "RearSight");
         Transform shellEjection = GetOrCreateChild(rifleObj.transform, "Shell_Ejection_Point");
 
-        attachPoint.localPosition = new Vector3(localCenter.x, minY + (maxY - minY) * 0.28f, localCenter.z - (maxZ - minZ) * 0.18f);
+        // Empuñadura ergonómica bajo el gatillo
+        attachPoint.localPosition = new Vector3(localCenter.x, minY + (maxY - minY) * 0.32f, minZ + (maxZ - minZ) * 0.38f);
         attachPoint.localRotation = Quaternion.identity;
 
-        muzzlePoint.localPosition = new Vector3(localCenter.x, localCenter.y + (maxY - minY) * 0.12f, maxZ + 0.02f);
+        // Punta del cañón apuntando al frente (+Z)
+        muzzlePoint.localPosition = new Vector3(localCenter.x, minY + (maxY - minY) * 0.65f, maxZ + 0.02f);
         muzzlePoint.localRotation = Quaternion.identity;
 
-        frontSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, maxZ - 0.04f);
+        // Mira frontal
+        frontSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, maxZ - 0.05f);
         frontSight.localRotation = Quaternion.identity;
 
-        rearSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, localCenter.z - 0.02f);
+        // Mira trasera
+        rearSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, localCenter.z - 0.04f);
         rearSight.localRotation = Quaternion.identity;
 
-        shellEjection.localPosition = new Vector3(maxX + 0.01f, localCenter.y + (maxY - minY) * 0.1f, localCenter.z);
+        // Expulsor de casquillos al costado derecho
+        shellEjection.localPosition = new Vector3(maxX + 0.015f, minY + (maxY - minY) * 0.65f, localCenter.z + 0.04f);
         shellEjection.localRotation = Quaternion.identity;
 
         // 5. Rigidbody
         Rigidbody rb = rifleObj.GetComponent<Rigidbody>();
         if (rb == null) rb = rifleObj.AddComponent<Rigidbody>();
-        rb.mass = 1.8f;
+        rb.mass = 2.0f;
         rb.linearDamping = 0.5f;
         rb.angularDamping = 0.5f;
         rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
@@ -102,7 +109,7 @@ public class RifleSetupTool : EditorWindow
         BoxCollider boxCol = rifleObj.GetComponent<BoxCollider>();
         if (boxCol == null) boxCol = rifleObj.AddComponent<BoxCollider>();
         boxCol.center = localCenter;
-        boxCol.size = new Vector3(Mathf.Max(0.25f, (maxX - minX) * 2.0f), Mathf.Max(0.30f, maxY - minY), Mathf.Max(0.90f, maxZ - minZ));
+        boxCol.size = new Vector3(Mathf.Max(0.14f, maxX - minX + 0.04f), Mathf.Max(0.24f, maxY - minY + 0.04f), Mathf.Max(0.90f, maxZ - minZ + 0.04f));
 
         // 7. LineRenderer
         LineRenderer tracer = rifleObj.GetComponent<LineRenderer>();

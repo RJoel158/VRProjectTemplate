@@ -225,7 +225,7 @@ public class ShootingRangeBuilder : EditorWindow
             meshInstance.name = "Rifle_Mesh_Model";
             meshInstance.transform.SetParent(modelRoot.transform);
             meshInstance.transform.localPosition = Vector3.zero;
-            meshInstance.transform.localRotation = Quaternion.identity;
+            meshInstance.transform.localRotation = Quaternion.Euler(0, -90f, 0);
             meshInstance.transform.localScale = Vector3.one * 0.85f;
             meshInstance.SetActive(true);
 
@@ -243,23 +243,23 @@ public class ShootingRangeBuilder : EditorWindow
             Debug.LogWarning("⚠️ No se encontró el FBX del rifle. Verificando rutas de assets...");
         }
 
-        // Ventana de expulsión de casquillos
+        // Ventana de expulsión de casquillos al costado derecho
         GameObject shellPoint = new GameObject("Shell_Ejection_Point");
         shellPoint.transform.SetParent(modelRoot.transform);
-        shellPoint.transform.localPosition = new Vector3(0.04f, 0.04f, 0.07f);
+        shellPoint.transform.localPosition = new Vector3(0.045f, 0.045f, 0.04f);
 
         // BoxCollider para agarrar el rifle
         BoxCollider boxCol = rifleRoot.AddComponent<BoxCollider>();
         boxCol.size = new Vector3(0.12f, 0.22f, 0.88f);
         boxCol.center = new Vector3(0, 0.02f, 0.15f);
 
-        // AttachPoint (Punto de agarre ergonómico con miras alineadas naturalmente hacia el ojo)
+        // AttachPoint (Punto de agarre ergonómico con miras alineadas naturalmente hacia el frente)
         GameObject attachPointObj = new GameObject("AttachPoint_Grip");
         attachPointObj.transform.SetParent(rifleRoot.transform);
-        attachPointObj.transform.localPosition = new Vector3(0.0f, -0.045f, -0.08f);
-        attachPointObj.transform.localRotation = Quaternion.Euler(0, 0, 0);
+        attachPointObj.transform.localPosition = new Vector3(0.0f, -0.04f, -0.06f);
+        attachPointObj.transform.localRotation = Quaternion.identity;
 
-        // Cañón y Miras de Hierro
+        // Cañón y Miras de Hierro apuntando al frente (+Z)
         GameObject muzzleObj = new GameObject("MuzzlePoint");
         muzzleObj.transform.SetParent(modelRoot.transform);
         muzzleObj.transform.localPosition = new Vector3(0.0f, 0.045f, 0.68f);
@@ -267,11 +267,13 @@ public class ShootingRangeBuilder : EditorWindow
 
         GameObject rearSightObj = new GameObject("RearSight");
         rearSightObj.transform.SetParent(modelRoot.transform);
-        rearSightObj.transform.localPosition = new Vector3(0.0f, 0.062f, 0.04f);
+        rearSightObj.transform.localPosition = new Vector3(0.0f, 0.062f, 0.02f);
+        rearSightObj.transform.localRotation = Quaternion.identity;
 
         GameObject frontSightObj = new GameObject("FrontSight");
         frontSightObj.transform.SetParent(modelRoot.transform);
         frontSightObj.transform.localPosition = new Vector3(0.0f, 0.062f, 0.65f);
+        frontSightObj.transform.localRotation = Quaternion.identity;
 
         // Trazador de bala
         LineRenderer tracer = rifleRoot.AddComponent<LineRenderer>();
