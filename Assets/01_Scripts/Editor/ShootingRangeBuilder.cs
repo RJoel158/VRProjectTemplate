@@ -15,9 +15,9 @@ public class ShootingRangeBuilder : EditorWindow
         ScoreEventData bullseyeSO = AssetDatabase.LoadAssetAtPath<ScoreEventData>("Assets/_SO/Shooting_Bullseye.asset");
         MinigameData shootingModeSO = AssetDatabase.LoadAssetAtPath<MinigameData>("Assets/_SO/ShootingMode.asset");
 
-        // 2. Buscar y Cargar Modelos 3D FBX de forma dinámica y robusta
-        GameObject dianaFBX = FindAssetByName<GameObject>("Meshy_AI_Archery_Target_0914022118_texture");
-        GameObject rifleFBX = FindAssetByName<GameObject>("Meshy_AI_Wooden_Rifle_0914021154_texture");
+        // 2. Cargar Modelos 3D FBX de forma segura
+        GameObject dianaFBX = LoadFBXModel("Meshy_AI_Archery_Target_0914022118_texture");
+        GameObject rifleFBX = LoadFBXModel("Meshy_AI_Wooden_Rifle_0914021154_texture");
 
         Material dianaMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Diana_3D.mat");
         Material rifleMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Rifle_Wood.mat");
@@ -43,7 +43,7 @@ public class ShootingRangeBuilder : EditorWindow
         Material matStand = CreateColorMaterial("Mat_Range_Stand", new Color(0.10f, 0.10f, 0.10f));
         Material matLaneLines = CreateColorMaterial("Mat_Range_LaneLine", new Color(0.90f, 0.60f, 0.15f));
 
-        // 5. Galería de Tiro Abierta y Proporcional (45m de longitud)
+        // 5. Galería de Tiro Abierta y Proporcional (45m)
         GameObject room = new GameObject("Room");
         room.transform.SetParent(env.transform);
 
@@ -86,11 +86,11 @@ public class ShootingRangeBuilder : EditorWindow
         rightWall.transform.localScale = new Vector3(0.5f, 7.0f, 48.0f);
         rightWall.GetComponent<MeshRenderer>().sharedMaterial = matWalls;
 
-        // Líneas divisoras sutiles de carril en el suelo (3 carriles bien definidos)
+        // Líneas divisoras sutiles de carril en el suelo
         CreatePillar("LaneLine_L", room.transform, new Vector3(-2.4f, 0.01f, 21.0f), new Vector3(0.08f, 0.02f, 42.0f), matLaneLines);
         CreatePillar("LaneLine_R", room.transform, new Vector3(2.4f, 0.01f, 21.0f), new Vector3(0.08f, 0.02f, 42.0f), matLaneLines);
 
-        // 6. Puesto del Jugador (Completamente Abierto)
+        // 6. Puesto del Jugador (Mesa Limpia, Sin Bloques Negros Ni Paredes Laterales)
         GameObject booth = new GameObject("PlayerBooth");
         booth.transform.SetParent(env.transform);
         booth.transform.position = Vector3.zero;
@@ -104,21 +104,17 @@ public class ShootingRangeBuilder : EditorWindow
         stallMat.GetComponent<MeshRenderer>().sharedMaterial = matBooth;
         stallMat.AddComponent<ShootingBoothBoundary>().boothIndicatorRenderer = stallMat.GetComponent<MeshRenderer>();
 
-        // Mesa de tiro frontal amplia y abierta (Altura 0.85m)
+        // Mesa de tiro frontal amplia y limpia (Altura 0.85m)
         GameObject table = GameObject.CreatePrimitive(PrimitiveType.Cube);
         table.name = "Shooting_Table";
         table.transform.SetParent(booth.transform);
         table.transform.position = new Vector3(0, 0.85f, 0.70f);
-        table.transform.localScale = new Vector3(2.4f, 0.08f, 0.60f);
+        table.transform.localScale = new Vector3(2.2f, 0.06f, 0.55f);
         table.GetComponent<MeshRenderer>().sharedMaterial = matTable;
 
-        // Patas de mesa
-        CreatePillar("Table_Leg_L", booth.transform, new Vector3(-1.1f, 0.425f, 0.70f), new Vector3(0.08f, 0.85f, 0.50f), matStand);
-        CreatePillar("Table_Leg_R", booth.transform, new Vector3(1.1f, 0.425f, 0.70f), new Vector3(0.08f, 0.85f, 0.50f), matStand);
-
-        // Soportes / Gun Racks en la mesa
-        CreateGunRack("GunRack_Left", table.transform, new Vector3(-0.45f, 0.08f, 0), matStand);
-        CreateGunRack("GunRack_Right", table.transform, new Vector3(0.45f, 0.08f, 0), matStand);
+        // Patas de mesa delgadas
+        CreatePillar("Table_Leg_L", booth.transform, new Vector3(-1.0f, 0.425f, 0.70f), new Vector3(0.06f, 0.85f, 0.40f), matStand);
+        CreatePillar("Table_Leg_R", booth.transform, new Vector3(1.0f, 0.425f, 0.70f), new Vector3(0.06f, 0.85f, 0.40f), matStand);
 
         // 7. Configuración de 3 Carriles × 3 Distancias (10m, 20m, 35m = 9 Dianas 3D)
         GameObject lanesRoot = new GameObject("Lanes");
@@ -127,7 +123,7 @@ public class ShootingRangeBuilder : EditorWindow
         float[] laneX = new float[] { -3.8f, 0.0f, 3.8f };
         string[] laneNames = new string[] { "Lane_1_Left", "Lane_2_Center", "Lane_3_Right" };
         float[] distances = new float[] { 10.0f, 20.0f, 35.0f };
-        float[] targetScales = new float[] { 0.9f, 1.15f, 1.4f }; // Escala equilibrada para 10m-35m
+        float[] targetScales = new float[] { 0.9f, 1.15f, 1.4f };
         string[] distNames = new string[] { "Close_10m", "Mid_20m", "Far_35m" };
         ScoreEventData[] scores = new ScoreEventData[] { closeHitSO, midHitSO, farHitSO };
         TargetType[] targetTypes = new TargetType[] { TargetType.Close, TargetType.Medium, TargetType.Far };
@@ -156,27 +152,25 @@ public class ShootingRangeBuilder : EditorWindow
             }
         }
 
-        // 8. Crear las 2 Armas sobre la mesa:
-        // Arma 1: Rifle Ruger 10/22 LR (Semiautomático)
+        // 8. Instanciar los Rifles 3D Reales directamente sobre la mesa
+        // Rifle 1: Ruger 10/22 LR (Semiautomático)
         CreateRifleWeapon(
             booth.transform,
-            new Vector3(-0.45f, 0.94f, 0.68f),
+            new Vector3(-0.35f, 0.90f, 0.68f),
             "Rifle_Ruger_1022LR",
             RifleType.SemiAutomatic,
             rifleFBX,
-            rifleMat,
-            matStand
+            rifleMat
         );
 
-        // Arma 2: Rifle de Cerrojo (Bolt Action)
+        // Rifle 2: Rifle de Cerrojo (Bolt Action)
         CreateRifleWeapon(
             booth.transform,
-            new Vector3(0.45f, 0.94f, 0.68f),
+            new Vector3(0.35f, 0.90f, 0.68f),
             "Rifle_BoltAction_Custom",
             RifleType.BoltAction,
             rifleFBX,
-            rifleMat,
-            matStand
+            rifleMat
         );
 
         // 9. Reposicionar el Canvas de puntuación / tiempo en la pared frontal superior
@@ -194,28 +188,7 @@ public class ShootingRangeBuilder : EditorWindow
         }
 
         Selection.activeGameObject = env;
-        Debug.Log("✅ ¡Campo de Tiro configurado a 10m, 20m, 35m con Dianas 3D y 2 Rifles interactivos!");
-    }
-
-    private static void CreateGunRack(string name, Transform parent, Vector3 localPos, Material mat)
-    {
-        GameObject rack = new GameObject(name);
-        rack.transform.SetParent(parent);
-        rack.transform.localPosition = localPos;
-
-        GameObject blockL = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        blockL.name = "Rack_Block_Front";
-        blockL.transform.SetParent(rack.transform);
-        blockL.transform.localPosition = new Vector3(0, 0.06f, 0.12f);
-        blockL.transform.localScale = new Vector3(0.08f, 0.08f, 0.04f);
-        blockL.GetComponent<MeshRenderer>().sharedMaterial = mat;
-
-        GameObject blockR = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        blockR.name = "Rack_Block_Rear";
-        blockR.transform.SetParent(rack.transform);
-        blockR.transform.localPosition = new Vector3(0, 0.06f, -0.12f);
-        blockR.transform.localScale = new Vector3(0.08f, 0.08f, 0.04f);
-        blockR.GetComponent<MeshRenderer>().sharedMaterial = mat;
+        Debug.Log("✅ ¡Campo de Tiro configurado a 10m, 20m, 35m con modelos 3D de Rifle y Dianas!");
     }
 
     private static void CreateRifleWeapon(
@@ -224,8 +197,7 @@ public class ShootingRangeBuilder : EditorWindow
         string weaponName,
         RifleType rifleType,
         GameObject fbxPrefab,
-        Material rifleMat,
-        Material matStand)
+        Material rifleMat)
     {
         GameObject existing = GameObject.Find(weaponName);
         if (existing != null) Undo.DestroyObjectImmediate(existing);
@@ -246,20 +218,20 @@ public class ShootingRangeBuilder : EditorWindow
         modelRoot.transform.localPosition = Vector3.zero;
         modelRoot.transform.localRotation = Quaternion.identity;
 
-        // Instanciar Mesh FBX
+        // Instanciar el modelo FBX 3D
         if (fbxPrefab != null)
         {
-            GameObject meshObj = (GameObject)PrefabUtility.InstantiatePrefab(fbxPrefab);
-            meshObj.name = "Mesh";
-            meshObj.transform.SetParent(modelRoot.transform);
-            meshObj.transform.localPosition = Vector3.zero;
-            meshObj.transform.localRotation = Quaternion.identity;
-            meshObj.transform.localScale = Vector3.one * 0.8f;
-            meshObj.SetActive(true);
+            GameObject meshInstance = (GameObject)PrefabUtility.InstantiatePrefab(fbxPrefab);
+            meshInstance.name = "Rifle_Mesh_Model";
+            meshInstance.transform.SetParent(modelRoot.transform);
+            meshInstance.transform.localPosition = Vector3.zero;
+            meshInstance.transform.localRotation = Quaternion.identity;
+            meshInstance.transform.localScale = Vector3.one * 0.85f;
+            meshInstance.SetActive(true);
 
             if (rifleMat != null)
             {
-                MeshRenderer[] renderers = meshObj.GetComponentsInChildren<MeshRenderer>(true);
+                MeshRenderer[] renderers = meshInstance.GetComponentsInChildren<MeshRenderer>(true);
                 foreach (var r in renderers)
                 {
                     r.sharedMaterial = rifleMat;
@@ -268,39 +240,26 @@ public class ShootingRangeBuilder : EditorWindow
         }
         else
         {
-            GameObject placeholder = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            placeholder.name = "Rifle_Body";
-            placeholder.transform.SetParent(modelRoot.transform);
-            placeholder.transform.localPosition = new Vector3(0, 0, 0.25f);
-            placeholder.transform.localScale = new Vector3(0.06f, 0.08f, 0.75f);
+            Debug.LogWarning("⚠️ No se encontró el FBX del rifle. Verificando rutas de assets...");
         }
-
-        // Cerrojo animado
-        GameObject boltObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        boltObj.name = "Bolt_Action_Handle";
-        boltObj.transform.SetParent(modelRoot.transform);
-        boltObj.transform.localPosition = new Vector3(0.035f, 0.038f, 0.06f);
-        boltObj.transform.localScale = new Vector3(0.035f, 0.02f, 0.04f);
-        boltObj.GetComponent<MeshRenderer>().sharedMaterial = matStand;
-        DestroyImmediate(boltObj.GetComponent<Collider>());
 
         // Ventana de expulsión de casquillos
         GameObject shellPoint = new GameObject("Shell_Ejection_Point");
         shellPoint.transform.SetParent(modelRoot.transform);
         shellPoint.transform.localPosition = new Vector3(0.04f, 0.04f, 0.07f);
 
-        // BoxCollider
+        // BoxCollider para agarrar el rifle
         BoxCollider boxCol = rifleRoot.AddComponent<BoxCollider>();
         boxCol.size = new Vector3(0.12f, 0.22f, 0.88f);
         boxCol.center = new Vector3(0, 0.02f, 0.15f);
 
-        // AttachPoint (Alineado con las miras de hierro hacia el frente)
+        // AttachPoint (Punto de agarre ergonómico con miras alineadas naturalmente hacia el ojo)
         GameObject attachPointObj = new GameObject("AttachPoint_Grip");
         attachPointObj.transform.SetParent(rifleRoot.transform);
         attachPointObj.transform.localPosition = new Vector3(0.0f, -0.045f, -0.08f);
         attachPointObj.transform.localRotation = Quaternion.Euler(0, 0, 0);
 
-        // Cañón y Miras
+        // Cañón y Miras de Hierro
         GameObject muzzleObj = new GameObject("MuzzlePoint");
         muzzleObj.transform.SetParent(modelRoot.transform);
         muzzleObj.transform.localPosition = new Vector3(0.0f, 0.045f, 0.68f);
@@ -339,7 +298,6 @@ public class ShootingRangeBuilder : EditorWindow
         rifleComp.rearSight = rearSightObj.transform;
         rifleComp.frontSight = frontSightObj.transform;
         rifleComp.attachPoint = attachPointObj.transform;
-        rifleComp.boltTransform = boltObj.transform;
         rifleComp.shellEjectionPoint = shellPoint.transform;
         rifleComp.modelRoot = modelRoot.transform;
         rifleComp.tracerLineRenderer = tracer;
@@ -429,14 +387,35 @@ public class ShootingRangeBuilder : EditorWindow
         st.reaction = TargetReaction.Wobble;
     }
 
-    private static T FindAssetByName<T>(string assetName) where T : Object
+    private static GameObject LoadFBXModel(string fbxName)
     {
-        string[] guids = AssetDatabase.FindAssets(assetName);
+        string[] directPaths = new string[]
+        {
+            $"Assets/03_Resources/{fbxName}.fbx",
+            $"Assets/03_Resources/Rugger 1022LR/{fbxName}.fbx",
+            $"Assets/03_Resources/Diana/{fbxName}.fbx"
+        };
+
+        foreach (string path in directPaths)
+        {
+            GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (go != null) return go;
+        }
+
+        string[] guids = AssetDatabase.FindAssets($"{fbxName} t:Model");
         if (guids != null && guids.Length > 0)
         {
-            string path = AssetDatabase.GUIDToAssetPath(guids[0]);
-            return AssetDatabase.LoadAssetAtPath<T>(path);
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (path.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                    if (go != null) return go;
+                }
+            }
         }
+
         return null;
     }
 
