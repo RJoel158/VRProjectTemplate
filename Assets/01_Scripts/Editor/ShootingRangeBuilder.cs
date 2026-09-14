@@ -257,7 +257,7 @@ public class ShootingRangeBuilder : EditorWindow
         GameObject attachPointObj = new GameObject("AttachPoint_Grip");
         attachPointObj.transform.SetParent(rifleRoot.transform);
         attachPointObj.transform.localPosition = new Vector3(0.0f, -0.04f, -0.06f);
-        attachPointObj.transform.localRotation = Quaternion.identity;
+        attachPointObj.transform.localRotation = Quaternion.Euler(0, -90f, 0);
 
         // Cañón y Miras de Hierro apuntando al frente (+Z)
         GameObject muzzleObj = new GameObject("MuzzlePoint");

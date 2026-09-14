@@ -86,6 +86,10 @@ public class VRRifle : MonoBehaviour
         }
     }
 
+    private XRBaseInteractor currentHoldingInteractor;
+    private bool isHeld = false;
+    private bool explicitDropRequested = false;
+
     private void Awake()
     {
         grabInteractable = GetComponent<XRGrabInteractable>();
@@ -137,22 +141,35 @@ public class VRRifle : MonoBehaviour
 
     private void OnGrabbed(SelectEnterEventArgs args)
     {
+        isHeld = true;
+        explicitDropRequested = false;
+        if (args.interactorObject is XRBaseInteractor baseInteractor)
+        {
+            currentHoldingInteractor = baseInteractor;
+        }
+
         if (rb != null)
         {
-            rb.isKinematic = true;
-            rb.useGravity = false;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
+            rb.useGravity = false;
+            rb.isKinematic = true;
         }
     }
 
     private void OnReleased(SelectExitEventArgs args)
     {
-        isAimingDownSights = false;
-        if (rb != null)
+        if (!toggleGrabMode || explicitDropRequested)
         {
-            rb.isKinematic = false;
-            rb.useGravity = true;
+            isHeld = false;
+            currentHoldingInteractor = null;
+            isAimingDownSights = false;
+
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.useGravity = true;
+            }
         }
     }
 
@@ -171,9 +188,31 @@ public class VRRifle : MonoBehaviour
         }
 
         // Comprobaciones cuando el rifle está sostenido
-        if (grabInteractable != null && grabInteractable.isSelected)
+        if (isHeld || (grabInteractable != null && grabInteractable.isSelected))
         {
             HandleInputs();
+
+            // Si está en modo Toggle y el interactor se soltó en el simulador, mantener posición fija en la mano
+            if (isHeld && currentHoldingInteractor != null && (grabInteractable != null && !grabInteractable.isSelected))
+            {
+                Transform handTransform = currentHoldingInteractor.GetAttachTransform(grabInteractable);
+                if (handTransform == null) handTransform = currentHoldingInteractor.transform;
+
+                if (!isAimingDownSights)
+                {
+                    if (attachPoint != null)
+                    {
+                        Quaternion rotDiff = handTransform.rotation * Quaternion.Inverse(attachPoint.rotation);
+                        transform.rotation = rotDiff * transform.rotation;
+                        transform.position += (handTransform.position - attachPoint.position);
+                    }
+                    else
+                    {
+                        transform.position = handTransform.position;
+                        transform.rotation = handTransform.rotation;
+                    }
+                }
+            }
 
             // Modo Bodycam ADS
             if (enableBodycamAim && isAimingDownSights && playerCam != null)
@@ -185,6 +224,11 @@ public class VRRifle : MonoBehaviour
 
     public void DropWeapon()
     {
+        explicitDropRequested = true;
+        isHeld = false;
+        currentHoldingInteractor = null;
+        isAimingDownSights = false;
+
         if (grabInteractable != null && grabInteractable.isSelected)
         {
             var interactor = grabInteractable.firstInteractorSelecting;
@@ -192,6 +236,12 @@ public class VRRifle : MonoBehaviour
             {
                 grabInteractable.interactionManager.SelectExit(interactor, grabInteractable);
             }
+        }
+
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
         }
     }
 

@@ -89,6 +89,11 @@ public class RifleSetupTool : EditorWindow
                 rifleComp.modelRoot.localEulerAngles = new Vector3(0, yawAngle, 0);
                 EditorUtility.SetDirty(rifleComp.modelRoot);
             }
+            if (rifleComp.attachPoint != null)
+            {
+                rifleComp.attachPoint.localEulerAngles = new Vector3(0, yawAngle, 0);
+                EditorUtility.SetDirty(rifleComp.attachPoint);
+            }
             EditorUtility.SetDirty(rifleComp);
         }
         else
@@ -100,7 +105,7 @@ public class RifleSetupTool : EditorWindow
                 EditorUtility.SetDirty(mr.transform);
             }
         }
-        Debug.Log($"🎯 Orientación del rifle actualizada a {yawAngle}° en Y.");
+        Debug.Log($"🎯 Orientación y punto de anclaje del rifle actualizados a {yawAngle}° en Y.");
     }
 
     private static GameObject FindRifleInScene()
@@ -171,19 +176,19 @@ public class RifleSetupTool : EditorWindow
         Transform shellEjection = GetOrCreateChild(rifleObj.transform, "Shell_Ejection_Point");
 
         attachPoint.localPosition = new Vector3(localCenter.x, minY + (maxY - minY) * 0.32f, minZ + (maxZ - minZ) * 0.38f);
-        attachPoint.localRotation = Quaternion.identity;
+        attachPoint.localRotation = Quaternion.Euler(0, yaw, 0);
 
         muzzlePoint.localPosition = new Vector3(localCenter.x, minY + (maxY - minY) * 0.65f, maxZ + 0.02f);
-        muzzlePoint.localRotation = Quaternion.identity;
+        muzzlePoint.localRotation = Quaternion.Euler(0, yaw, 0);
 
         frontSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, maxZ - 0.05f);
-        frontSight.localRotation = Quaternion.identity;
+        frontSight.localRotation = Quaternion.Euler(0, yaw, 0);
 
         rearSight.localPosition = new Vector3(localCenter.x, maxY - 0.005f, localCenter.z - 0.04f);
-        rearSight.localRotation = Quaternion.identity;
+        rearSight.localRotation = Quaternion.Euler(0, yaw, 0);
 
         shellEjection.localPosition = new Vector3(maxX + 0.015f, minY + (maxY - minY) * 0.65f, localCenter.z + 0.04f);
-        shellEjection.localRotation = Quaternion.identity;
+        shellEjection.localRotation = Quaternion.Euler(0, yaw, 0);
 
         Rigidbody rb = rifleObj.GetComponent<Rigidbody>();
         if (rb == null) rb = rifleObj.AddComponent<Rigidbody>();
