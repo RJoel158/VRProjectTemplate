@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 663214ad602ade945a510c706cebd2ef, type: 3}
   m_Name: Shooting_CloseHit
   m_EditorClassIdentifier: Assembly-CSharp::ScoreEventData
-  eventName: Diana Cercana (5m)
+  eventName: Diana Corta (10m)
   sport: 3
   pointValue: 10
   isBonus: 0
   scoreSound: {fileID: 0}
-  feedbackMessage: +10 pts (Diana Corta)
+  feedbackMessage: +10 pts (Diana 10m)

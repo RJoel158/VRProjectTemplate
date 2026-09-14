@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 663214ad602ade945a510c706cebd2ef, type: 3}
   m_Name: Shooting_FarHit
   m_EditorClassIdentifier: Assembly-CSharp::ScoreEventData
-  eventName: Diana Lejana (15m)
+  eventName: Diana Lejana (35m)
   sport: 3
   pointValue: 50
   isBonus: 0
   scoreSound: {fileID: 0}
-  feedbackMessage: +50 pts (Diana Larga)
+  feedbackMessage: +50 pts (Diana 35m)
