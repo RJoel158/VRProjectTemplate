@@ -12,6 +12,9 @@ public enum RifleType
 }
 
 [RequireComponent(typeof(XRGrabInteractable))]
+[RequireComponent(typeof(Rigidbody))]
+public class VRRifle : MonoBehaviour
+{
     [Header("Alineación y Orientación")]
     public Vector3 modelRotationOffset = new Vector3(0, -90f, 0);
     public Vector3 gripOffsetPosition = Vector3.zero;
