@@ -26,7 +26,6 @@ ProjectSettings/PackageServerData/
 sysinfo.txt
 mono_crash.*
 crashlytics-build.properties
-
 # --- Builds y Paquetes de Salida ---
 *.apk
 *.aab
