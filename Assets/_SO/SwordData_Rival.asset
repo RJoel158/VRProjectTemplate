@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e70e639ea76c142a60a60e670f47f8, type: 3}
+  m_Name: SwordData_Rival
+  m_EditorClassIdentifier: Esgrima.Data::SwordDataSO
+  swordName: Espada Roja del Rival
+  knockbackImpulse: 2.8
+  damage: 1
+  minSwingVelocity: 0.8
+  hapticIntensity: 0.6
+  hapticDurationSeconds: 0.1
+  clashSound: {fileID: 8300000, guid: ef85375d0b98eb64b971a812df665a0b, type: 3}
+  fleshHitSound: {fileID: 8300000, guid: 6e98bbf8809e5354988fe22cb9a6a84d, type: 3}
+  swingWhooshSound: {fileID: 0}

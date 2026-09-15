@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d155af1a6c70c143b753aae608370a8, type: 3}
+  m_Name: SwordFightingMode
+  m_EditorClassIdentifier: Assembly-CSharp::MinigameData
+  sportName: Esgrima
+  description: Duelo de espadas en la plataforma circular al estilo Wii Sports Resort. Golpea, bloquea y haz retroceder a tu rival hasta tirarlo del ring.
+  icon: {fileID: 0}
+  sceneName: SwordScene
+  timeLimitSeconds: 90
+  targetScoreToWin: 3
+  instructionsText: Empu\xF1a la espada con tu mando de Oculus Quest. Golpea con decisi\xF3n al rival para empujarlo hacia el borde. Cruza espadas para bloquear sus ataques y hazlo caer al agua para ganar.
