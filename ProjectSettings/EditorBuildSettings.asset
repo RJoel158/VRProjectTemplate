@@ -17,6 +17,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/00_Scenes/BowlingScene.unity
     guid: e58a4e382a56eaa4d95e8cf6c5cb6e09
+  - enabled: 1
+    path: Assets/00_Scenes/SwordScene.unity
+    guid: 5fafe126e6adb88479ad1b9834a32d95
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: bfa1182bd221b4ca89619141f66f1260, type: 2}
     Unity.XR.WindowsMR.Settings: {fileID: 11400000, guid: dc5a169419fa04987b057f65238cf3ba, type: 2}
