@@ -1,14 +1,7 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-// One single, reusable score manager that ANY sport's scripts can call.
-// It doesn't know or care what "made a shot" or "knocked a pin" means -
-// it just receives a ScoreEventData asset and adds its pointValue.
-//
-// This is the payoff of using ScriptableObjects here: the same component
-// can live in the Basketball scene, the Bowling scene, the Sword scene,
-// and the Shooting scene, with zero code duplication and zero if/else
-// chains checking "which sport am I in".
+
 public class ScoreManager : MonoBehaviour
 {
     public static ScoreManager Instance { get; private set; }
@@ -17,11 +10,11 @@ public class ScoreManager : MonoBehaviour
     [SerializeField] private int currentScore;
 
     [Header("Events")]
-    public UnityEvent<int> onScoreChanged; // e.g. hook up to UI text update
+    public UnityEvent<int> onScoreChanged; 
 
     private void Awake()
     {
-        // Simple singleton so any script in the scene can reach it easily.
+      
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -30,9 +23,7 @@ public class ScoreManager : MonoBehaviour
         Instance = this;
     }
 
-    // Call this from ANY sport's script, passing the relevant ScoreEventData asset.
-    // Example (basketball): ScoreManager.Instance.RegisterScoreEvent(madeShotEventData);
-    // Example (bowling):    ScoreManager.Instance.RegisterScoreEvent(pinKnockedEventData);
+   
     public void RegisterScoreEvent(ScoreEventData scoreEvent)
     {
         if (scoreEvent == null)
@@ -53,6 +44,13 @@ public class ScoreManager : MonoBehaviour
             Debug.Log($"[{scoreEvent.sport}] {scoreEvent.feedbackMessage} (+{scoreEvent.pointValue})");
         }
 
+        onScoreChanged?.Invoke(currentScore);
+    }
+
+   
+    public void AddPoints(int amount)
+    {
+        currentScore += amount;
         onScoreChanged?.Invoke(currentScore);
     }
 

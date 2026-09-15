@@ -6,6 +6,8 @@ TagManager:
   tags:
   - Anchor
   - Basketball
+  - BowlingPin
+  - BowlingBall
   layers:
   - Default
   - TransparentFX
