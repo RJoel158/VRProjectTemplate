@@ -33,12 +33,14 @@ public class VRRifle : MonoBehaviour
     public Transform modelRoot;
 
     [Header("Modo Bodycam / ADS")]
+    [Tooltip("Si es true, equipa automáticamente el rifle de frente al jugador al iniciar")]
+    public bool autoEquipOnStart = true;
     public bool enableBodycamAim = true;
-    public bool isAimingDownSights = false;
-    public float bodycamEyeDistance = 0.26f;
+    public bool isAimingDownSights = true;
+    public float bodycamEyeDistance = 0.32f;
     public float eyeOffsetRight = 0.0f;
     public float eyeOffsetUp = -0.012f;
-    public float aimLerpSpeed = 22f;
+    public float aimLerpSpeed = 25f;
     public bool enableMouseLookInADS = true;
     public float mouseSensitivity = 1.8f;
 
@@ -90,7 +92,7 @@ public class VRRifle : MonoBehaviour
     private Vector3 currentRecoilRot;
 
     private XRBaseInteractor currentHoldingInteractor;
-    private bool isHeld = false;
+    private bool isHeld = true;
     private bool explicitDropRequested = false;
 
     private void OnValidate()
@@ -111,6 +113,12 @@ public class VRRifle : MonoBehaviour
 
         playerCam = Camera.main;
 
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+
         AutoLocateReferences();
 
         // Configuración óptima para agarre instantáneo y sólido en VR
@@ -120,7 +128,9 @@ public class VRRifle : MonoBehaviour
             grabInteractable.useDynamicAttach = false;
             grabInteractable.matchAttachPosition = true;
             grabInteractable.matchAttachRotation = true;
-            grabInteractable.throwOnDetach = true;
+            grabInteractable.throwOnDetach = false;
+            grabInteractable.trackPosition = false;
+            grabInteractable.trackRotation = false;
             if (attachPoint != null) grabInteractable.attachTransform = attachPoint;
         }
 
@@ -137,6 +147,29 @@ public class VRRifle : MonoBehaviour
         }
 
         currentAmmo = magazineCapacity;
+    }
+
+    private void Start()
+    {
+        if (autoEquipOnStart)
+        {
+            isHeld = true;
+            isAimingDownSights = true;
+
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.useGravity = false;
+            }
+
+            if (playerCam == null) playerCam = Camera.main;
+            if (playerCam != null)
+            {
+                Vector3 euler = playerCam.transform.eulerAngles;
+                camPitch = euler.x > 180f ? euler.x - 360f : euler.x;
+                camYaw = euler.y;
+            }
+        }
     }
 
     public void AutoLocateReferences()
