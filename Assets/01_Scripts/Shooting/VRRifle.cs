@@ -1,441 +1,311 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR;
 using UnityEngine.InputSystem;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
+using Unity.XR.CoreUtils;
 
-public enum RifleType
-{
-    SemiAutomatic,  // Ruger 10/22 LR
-    BoltAction      // Rifle de Cerrojo
-}
-
-[RequireComponent(typeof(XRGrabInteractable))]
-[RequireComponent(typeof(Rigidbody))]
+/// <summary>
+/// Control del rifle:
+/// - En reposo: descansando en la mesa/stand.
+/// - Con un click: se monta frente a la cámara con las miras alineadas listo para apuntar y disparar.
+/// - Estando apuntando: cada click dispara.
+/// - Click secundario (Click Derecho / Tecla G / Grip VR): lo devuelve a la mesa.
+/// </summary>
+[RequireComponent(typeof(AudioSource))]
 public class VRRifle : MonoBehaviour
 {
-    [Header("Alineación y Orientación")]
-    public Vector3 modelRotationOffset = new Vector3(0, -90f, 0);
-    public Vector3 gripOffsetPosition = Vector3.zero;
-    public Vector3 gripOffsetRotation = Vector3.zero;
-    public bool toggleGrabMode = true;
+    [Header("Modo de Apuntado (ADS)")]
+    [Tooltip("Indica si el rifle está montado frente a la cámara apuntando")]
+    public bool isAiming = false;
 
-    [Header("Tipo de Rifle")]
-    public RifleType rifleType = RifleType.SemiAutomatic;
+    [Tooltip("Posición local relativa a la cámara al apuntar")]
+    public Vector3 aimLocalPosition = new Vector3(0f, -0.045f, 0.32f);
 
-    [Header("Empties de Referencia")]
+    [Tooltip("Rotación local relativa a la cámara al apuntar")]
+    public Vector3 aimLocalRotation = new Vector3(180f, 90f, 180f);
+
+    [Header("Referencias de Miras y Cañón")]
     public Transform muzzlePoint;
     public Transform frontSight;
     public Transform rearSight;
-    public Transform attachPoint;
-    public Transform shellEjectionPoint;
-    public Transform modelRoot;
 
-    [Header("Modo Bodycam / ADS")]
-    [Tooltip("Si es true, equipa automáticamente el rifle de frente al jugador al iniciar")]
-    public bool autoEquipOnStart = true;
-    public bool enableBodycamAim = true;
-    public bool isAimingDownSights = true;
-    public float bodycamEyeDistance = 0.32f;
-    public float eyeOffsetRight = 0.0f;
-    public float eyeOffsetUp = -0.012f;
-    public float aimLerpSpeed = 25f;
-    public bool enableMouseLookInADS = true;
-    public float mouseSensitivity = 1.8f;
-
-    private float camPitch = 0f;
-    private float camYaw = 0f;
-    private bool wasAimingLastFrame = false;
-
-    [Header("Balística y Disparo")]
-    public float maxRange = 300f;
-    public float fireRate = 0.18f;
+    [Header("Parámetros de Disparo")]
+    public float maxRange          = 300f;
+    public float fireRate          = 0.18f;
     public float bulletImpactForce = 60f;
-    public LayerMask hitLayers = ~0;
+    public LayerMask hitLayers     = ~0;
 
     [Header("Munición")]
-    public int magazineCapacity = 10;
-    public int currentAmmo = 10;
-    public bool infiniteAmmo = true;
-    public float reloadDuration = 1.5f;
-    public bool isReloading = false;
+    public int   magazineCapacity = 10;
+    public int   currentAmmo      = 10;
+    public bool  infiniteAmmo     = true;
+    public float reloadDuration   = 1.5f;
+    public bool  isReloading      = false;
 
-    [Header("Retroceso Procedural (Bodycam)")]
-    public float recoilKickBack = 0.035f;
-    public float recoilKickUp = 3.5f;
-    public float recoilKickSide = 0.6f;
-    public float recoilReturnSpeed = 18f;
+    [Header("Animación de Avatar")]
+    [Tooltip("Animator del avatar para disparar la animación de retroceso/disparo")]
+    public Animator avatarAnimator;
 
-    [Header("Materiales y Efectos")]
-    public Material tracerMaterial;
-    public Material shellMaterial;
+    [Header("Efectos Visuales")]
     public ParticleSystem muzzleFlash;
-    public LineRenderer tracerLineRenderer;
-    public float tracerDuration = 0.04f;
+    public LineRenderer   tracerLineRenderer;
+    public Material       tracerMaterial;
+    public float          tracerDuration = 0.04f;
 
-    [Header("Feedback")]
-    [Range(0f, 1f)] public float fireHapticIntensity = 0.85f;
-    public float fireHapticDuration = 0.12f;
+    [Header("Audio")]
     public AudioClip fireAudioClip;
     public AudioClip reloadAudioClip;
     public AudioClip emptyAudioClip;
 
-    private XRGrabInteractable grabInteractable;
+    [Header("Háptica VR")]
+    [Range(0f, 1f)] public float fireHapticIntensity = 0.85f;
+    public float fireHapticDuration = 0.12f;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CAMPOS PRIVADOS
+    // ─────────────────────────────────────────────────────────────────────────
+
     private AudioSource audioSource;
-    private Rigidbody rb;
+    private XRGrabInteractable grabInteractable;
     private Camera playerCam;
+
+    private Vector3 restLocalPosition;
+    private Quaternion restLocalRotation;
+    private Transform restParent;
+
     private float nextFireTime = 0f;
+    private bool wasVRTriggerDownLastFrame = false;
+    private bool wasVRGripDownLastFrame = false;
 
-    private Vector3 initialModelLocalPos;
-    private Vector3 currentRecoilPos;
-    private Vector3 currentRecoilRot;
-
-    private XRBaseInteractor currentHoldingInteractor;
-    private bool isHeld = true;
-    private bool explicitDropRequested = false;
-
-    private void OnValidate()
-    {
-        AutoLocateReferences();
-        if (modelRoot != null && !Application.isPlaying)
-        {
-            modelRoot.localEulerAngles = modelRotationOffset;
-        }
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // INICIALIZACIÓN
+    // ─────────────────────────────────────────────────────────────────────────
 
     private void Awake()
     {
-        grabInteractable = GetComponent<XRGrabInteractable>();
-        rb = GetComponent<Rigidbody>();
-        audioSource = GetComponent<AudioSource>();
-        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
-
-        playerCam = Camera.main;
-
+        Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
         {
             rb.isKinematic = true;
-            rb.useGravity = false;
+            rb.useGravity  = false;
         }
 
-        AutoLocateReferences();
+        Collider col = GetComponent<Collider>();
+        if (col == null)
+        {
+            BoxCollider bc = gameObject.AddComponent<BoxCollider>();
+            MeshFilter mf = GetComponent<MeshFilter>();
+            if (mf != null && mf.sharedMesh != null)
+            {
+                bc.center = mf.sharedMesh.bounds.center;
+                bc.size   = mf.sharedMesh.bounds.size;
+            }
+            else
+            {
+                bc.size = new Vector3(0.012f, 0.02f, 0.088f);
+            }
+            col = bc;
+        }
 
-        // Configuración óptima para agarre instantáneo y sólido en VR
+        grabInteractable = GetComponent<XRGrabInteractable>();
         if (grabInteractable != null)
         {
+            grabInteractable.enabled = true;
             grabInteractable.movementType = XRBaseInteractable.MovementType.Instantaneous;
-            grabInteractable.useDynamicAttach = false;
-            grabInteractable.matchAttachPosition = true;
-            grabInteractable.matchAttachRotation = true;
             grabInteractable.throwOnDetach = false;
-            grabInteractable.trackPosition = false;
-            grabInteractable.trackRotation = false;
-            if (attachPoint != null) grabInteractable.attachTransform = attachPoint;
+            if (grabInteractable.colliders.Count == 0 && col != null)
+                grabInteractable.colliders.Add(col);
+
+            // Al interactuar con rayo o mano en VR, montar el rifle para apuntar
+            grabInteractable.selectEntered.AddListener((args) => SetAimPosition());
+            grabInteractable.activated.AddListener((args) => OnActionTriggered());
         }
 
-        if (modelRoot != null)
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+
+        audioSource.playOnAwake = false;
+        audioSource.spatialBlend = 0.8f;
+
+        if (muzzlePoint == null)
         {
-            initialModelLocalPos = modelRoot.localPosition;
-            modelRoot.localEulerAngles = modelRotationOffset;
+            Transform found = transform.Find("MuzzlePoint");
+            if (found != null) muzzlePoint = found;
         }
 
         if (tracerLineRenderer == null) tracerLineRenderer = GetComponent<LineRenderer>();
         if (tracerLineRenderer != null && tracerMaterial != null)
-        {
             tracerLineRenderer.sharedMaterial = tracerMaterial;
-        }
 
         currentAmmo = magazineCapacity;
     }
 
     private void Start()
     {
-        if (autoEquipOnStart)
+        GetPlayerCamera();
+
+        // Si ya estaba puesto como hijo de la cámara, guardar esos valores como la posición de apuntado
+        if (transform.parent != null && transform.parent.name.Contains("Camera"))
         {
-            isHeld = true;
-            isAimingDownSights = true;
-
-            if (rb != null)
-            {
-                rb.isKinematic = true;
-                rb.useGravity = false;
-            }
-
-            if (playerCam == null) playerCam = Camera.main;
-            if (playerCam != null)
-            {
-                Vector3 euler = playerCam.transform.eulerAngles;
-                camPitch = euler.x > 180f ? euler.x - 360f : euler.x;
-                camYaw = euler.y;
-            }
-        }
-    }
-
-    public void AutoLocateReferences()
-    {
-        if (modelRoot == null)
-        {
-            Transform found = transform.Find("Model_Root") ?? transform.Find("Rifle_Mesh_Model");
-            if (found != null) modelRoot = found;
-            else
-            {
-                MeshRenderer mr = GetComponentInChildren<MeshRenderer>();
-                if (mr != null) modelRoot = mr.transform;
-            }
-        }
-
-        Transform searchRoot = modelRoot != null ? modelRoot : transform;
-
-        if (muzzlePoint == null)
-            muzzlePoint = searchRoot.Find("MuzzlePoint") ?? transform.Find("MuzzlePoint");
-
-        if (shellEjectionPoint == null)
-            shellEjectionPoint = searchRoot.Find("Shell_Ejection_Point") ?? transform.Find("Shell_Ejection_Point");
-
-        if (frontSight == null)
-            frontSight = searchRoot.Find("FrontSight") ?? transform.Find("FrontSight");
-
-        if (rearSight == null)
-            rearSight = searchRoot.Find("RearSight") ?? transform.Find("RearSight");
-
-        if (attachPoint == null)
-            attachPoint = transform.Find("AttachPoint_Grip") ?? searchRoot.Find("AttachPoint_Grip");
-
-#if UNITY_EDITOR
-        if (tracerMaterial == null)
-            tracerMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Bullet_Tracer.mat");
-        if (shellMaterial == null)
-            shellMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/04_Materials/Mat_Bullet_Shell.mat");
-#endif
-    }
-
-    private void OnEnable()
-    {
-        if (grabInteractable != null)
-        {
-            grabInteractable.activated.AddListener(OnTriggerPulled);
-            grabInteractable.selectEntered.AddListener(OnGrabbed);
-            grabInteractable.selectExited.AddListener(OnReleased);
-        }
-    }
-
-    private void OnDisable()
-    {
-        if (grabInteractable != null)
-        {
-            grabInteractable.activated.RemoveListener(OnTriggerPulled);
-            grabInteractable.selectEntered.RemoveListener(OnGrabbed);
-            grabInteractable.selectExited.RemoveListener(OnReleased);
-        }
-    }
-
-    private void OnGrabbed(SelectEnterEventArgs args)
-    {
-        isHeld = true;
-        explicitDropRequested = false;
-        if (args.interactorObject is XRBaseInteractor baseInteractor)
-        {
-            currentHoldingInteractor = baseInteractor;
-        }
-
-        if (rb != null)
-        {
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-            rb.useGravity = false;
-            rb.isKinematic = true;
-        }
-    }
-
-    private void OnReleased(SelectExitEventArgs args)
-    {
-        if (!toggleGrabMode || explicitDropRequested)
-        {
-            isHeld = false;
-            currentHoldingInteractor = null;
-            isAimingDownSights = false;
-
-            if (rb != null)
-            {
-                rb.isKinematic = false;
-                rb.useGravity = true;
-            }
-        }
-    }
-
-    private void Update()
-    {
-        if (playerCam == null) playerCam = Camera.main;
-
-        // Recuperación suave de retroceso procedural
-        if (modelRoot != null)
-        {
-            currentRecoilPos = Vector3.Lerp(currentRecoilPos, Vector3.zero, Time.deltaTime * recoilReturnSpeed);
-            currentRecoilRot = Vector3.Lerp(currentRecoilRot, Vector3.zero, Time.deltaTime * recoilReturnSpeed);
-
-            modelRoot.localPosition = initialModelLocalPos + currentRecoilPos;
-            modelRoot.localRotation = Quaternion.Euler(modelRotationOffset) * Quaternion.Euler(currentRecoilRot);
-        }
-
-        // Comprobaciones cuando el rifle está sostenido
-        if (isHeld || (grabInteractable != null && grabInteractable.isSelected))
-        {
-            HandleInputs();
-
-            // Modo Bodycam ADS
-            if (enableBodycamAim && isAimingDownSights && playerCam != null)
-            {
-                if (!wasAimingLastFrame)
-                {
-                    Vector3 euler = playerCam.transform.eulerAngles;
-                    camPitch = euler.x > 180f ? euler.x - 360f : euler.x;
-                    camYaw = euler.y;
-                }
-
-                if (enableMouseLookInADS && Mouse.current != null)
-                {
-                    Vector2 mouseDelta = Mouse.current.delta.ReadValue();
-                    if (mouseDelta.sqrMagnitude > 0.0001f)
-                    {
-                        camYaw += mouseDelta.x * mouseSensitivity * 0.12f;
-                        camPitch -= mouseDelta.y * mouseSensitivity * 0.12f;
-                        camPitch = Mathf.Clamp(camPitch, -75f, 75f);
-
-                        playerCam.transform.rotation = Quaternion.Euler(camPitch, camYaw, 0f);
-                    }
-                }
-
-                ApplyBodycamAimAlignment();
-                wasAimingLastFrame = true;
-            }
-            else
-            {
-                wasAimingLastFrame = false;
-
-                // Si está en modo Toggle y el interactor se soltó en el simulador, mantener posición fija en la mano
-                if (isHeld && currentHoldingInteractor != null && (grabInteractable != null && !grabInteractable.isSelected))
-                {
-                    Transform handTransform = currentHoldingInteractor.GetAttachTransform(grabInteractable);
-                    if (handTransform == null) handTransform = currentHoldingInteractor.transform;
-
-                    if (attachPoint != null)
-                    {
-                        Quaternion rotDiff = handTransform.rotation * Quaternion.Inverse(attachPoint.rotation);
-                        transform.rotation = rotDiff * transform.rotation;
-                        transform.position += (handTransform.position - attachPoint.position);
-                    }
-                    else
-                    {
-                        transform.position = handTransform.position;
-                        transform.rotation = handTransform.rotation;
-                    }
-                }
-            }
+            isAiming = true;
+            aimLocalPosition = transform.localPosition;
+            aimLocalRotation = transform.localEulerAngles;
         }
         else
         {
-            wasAimingLastFrame = false;
+            // Guardar posición de reposo en la mesa
+            restParent        = transform.parent;
+            restLocalPosition = transform.localPosition;
+            restLocalRotation = transform.localRotation;
         }
     }
 
-    public void DropWeapon()
+    // ─────────────────────────────────────────────────────────────────────────
+    // LOOP DE ENTRADAS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void Update()
     {
-        explicitDropRequested = true;
-        isHeld = false;
-        currentHoldingInteractor = null;
-        isAimingDownSights = false;
+        bool vrTrigger  = ReadVRTriggerDown();
+        bool mouseShoot = (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame);
+        bool keyShoot   = (Keyboard.current != null && (Keyboard.current.tKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame));
 
-        if (grabInteractable != null && grabInteractable.isSelected)
+        // Click principal: si no está apuntando -> montarlo con miras alineadas; si ya está apuntando -> disparar
+        if (vrTrigger || mouseShoot || keyShoot)
         {
-            var interactor = grabInteractable.firstInteractorSelecting;
-            if (interactor != null && grabInteractable.interactionManager != null)
-            {
-                grabInteractable.interactionManager.SelectExit(interactor, grabInteractable);
-            }
+            OnActionTriggered();
         }
 
-        if (rb != null)
-        {
-            rb.isKinematic = false;
-            rb.useGravity = true;
-        }
-    }
+        // Click secundario (Click Derecho / Tecla G / Grip VR): devolver a la mesa o alternar
+        bool vrGrip      = ReadVRGripDown();
+        bool mouseCancel = (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame);
+        bool keyCancel   = (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame);
 
-    private void HandleInputs()
-    {
-        // Tecla 'G' o 'E' para soltar en modo Toggle
-        if (Keyboard.current != null && (Keyboard.current.gKey.wasPressedThisFrame || Keyboard.current.eKey.wasPressedThisFrame))
+        if (vrGrip || mouseCancel || keyCancel)
         {
-            DropWeapon();
-            return;
+            if (isAiming)
+                ReturnToRestPosition();
+            else
+                SetAimPosition();
         }
 
-        // Tecla 'R' para recargar
+        // Recarga con tecla R
         if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
         {
             TryReload();
         }
+    }
 
-        // Teclas 'F', 'Z', 'Space' o Clic Derecho para alternar modo Bodycam ADS
-        if (Keyboard.current != null)
+    private void OnActionTriggered()
+    {
+        if (!isAiming)
         {
-            if (Keyboard.current.fKey.wasPressedThisFrame || 
-                Keyboard.current.zKey.wasPressedThisFrame || 
-                Keyboard.current.spaceKey.wasPressedThisFrame)
+            SetAimPosition();
+        }
+        else
+        {
+            TryFire();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SETEAR MIRA ALINEADA FRENTE A LA CÁMARA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public void SetAimPosition()
+    {
+        Camera cam = GetPlayerCamera();
+        if (cam == null) return;
+
+        isAiming = true;
+
+        // Anclar como hijo de la cámara con las miras perfectamente alineadas
+        transform.SetParent(cam.transform, false);
+        transform.localPosition = aimLocalPosition;
+        transform.localRotation = Quaternion.Euler(aimLocalRotation);
+
+        Collider col = GetComponent<Collider>();
+        if (col != null) col.isTrigger = true;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
+
+        PlaySound(reloadAudioClip, 0.4f);
+        Debug.Log("[VRRifle] ✅ Arma seteada con las miras alineadas lista para apuntar/disparar.");
+    }
+
+    public void ReturnToRestPosition()
+    {
+        if (!isAiming) return;
+        isAiming = false;
+
+        transform.SetParent(restParent, false);
+        transform.localPosition = restLocalPosition;
+        transform.localRotation = restLocalRotation;
+
+        Collider col = GetComponent<Collider>();
+        if (col != null) col.isTrigger = false;
+
+        Debug.Log("[VRRifle] ↩ Arma devuelta a su posición de reposo en el stand.");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DETECCIÓN DE CONTROLES VR
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private bool ReadVRTriggerDown()
+    {
+        bool isDownNow = false;
+
+        var rightDevices = new List<UnityEngine.XR.InputDevice>();
+        UnityEngine.XR.InputDevices.GetDevicesAtXRNode(XRNode.RightHand, rightDevices);
+        foreach (var dev in rightDevices)
+        {
+            if (dev.TryGetFeatureValue(UnityEngine.XR.CommonUsages.triggerButton, out bool btn) && btn) isDownNow = true;
+            else if (dev.TryGetFeatureValue(UnityEngine.XR.CommonUsages.trigger, out float val) && val > 0.5f) isDownNow = true;
+        }
+
+        if (!isDownNow)
+        {
+            var leftDevices = new List<UnityEngine.XR.InputDevice>();
+            UnityEngine.XR.InputDevices.GetDevicesAtXRNode(XRNode.LeftHand, leftDevices);
+            foreach (var dev in leftDevices)
             {
-                isAimingDownSights = !isAimingDownSights;
+                if (dev.TryGetFeatureValue(UnityEngine.XR.CommonUsages.triggerButton, out bool btn) && btn) isDownNow = true;
+                else if (dev.TryGetFeatureValue(UnityEngine.XR.CommonUsages.trigger, out float val) && val > 0.5f) isDownNow = true;
             }
         }
 
-        if (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame)
-        {
-            isAimingDownSights = !isAimingDownSights;
-        }
-
-        // Clic izquierdo o tecla 'T' dispara si está sostenido
-        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
-        {
-            TryFire();
-        }
-        else if (Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame)
-        {
-            TryFire();
-        }
+        bool wasPressedThisFrame = isDownNow && !wasVRTriggerDownLastFrame;
+        wasVRTriggerDownLastFrame = isDownNow;
+        return wasPressedThisFrame;
     }
 
-    private void ApplyBodycamAimAlignment()
+    private bool ReadVRGripDown()
     {
-        if (frontSight == null || rearSight == null || playerCam == null) return;
+        bool isDownNow = false;
 
-        Vector3 eyePos = playerCam.transform.position 
-            + (playerCam.transform.right * eyeOffsetRight) 
-            + (playerCam.transform.up * eyeOffsetUp) 
-            + (playerCam.transform.forward * bodycamEyeDistance);
-
-        Vector3 aimDirection = playerCam.transform.forward;
-        Quaternion targetRotation = Quaternion.LookRotation(aimDirection, playerCam.transform.up);
-
-        Vector3 localSightDir = (frontSight.position - rearSight.position);
-        Vector3 localSightDirInRifle = transform.InverseTransformDirection(localSightDir).normalized;
-        if (localSightDirInRifle.sqrMagnitude > 0.001f)
+        var rightDevices = new List<UnityEngine.XR.InputDevice>();
+        UnityEngine.XR.InputDevices.GetDevicesAtXRNode(XRNode.RightHand, rightDevices);
+        foreach (var dev in rightDevices)
         {
-            Quaternion sightToForward = Quaternion.FromToRotation(localSightDirInRifle, Vector3.forward);
-            targetRotation = targetRotation * Quaternion.Inverse(sightToForward);
+            if (dev.TryGetFeatureValue(UnityEngine.XR.CommonUsages.gripButton, out bool btn) && btn) isDownNow = true;
+            else if (dev.TryGetFeatureValue(UnityEngine.XR.CommonUsages.grip, out float val) && val > 0.5f) isDownNow = true;
         }
 
-        Vector3 localRearSight = transform.InverseTransformPoint(rearSight.position);
-        Vector3 rotatedRearOffset = targetRotation * localRearSight;
-        Vector3 targetPosition = eyePos - rotatedRearOffset;
-
-        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * aimLerpSpeed);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * aimLerpSpeed);
+        bool wasPressedThisFrame = isDownNow && !wasVRGripDownLastFrame;
+        wasVRGripDownLastFrame = isDownNow;
+        return wasPressedThisFrame;
     }
 
-    private void OnTriggerPulled(ActivateEventArgs args)
-    {
-        TryFire();
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // LÓGICA DE DISPARO
+    // ─────────────────────────────────────────────────────────────────────────
 
     public void TryFire()
     {
@@ -451,6 +321,9 @@ public class VRRifle : MonoBehaviour
 
         ExecuteFire();
         nextFireTime = Time.time + fireRate;
+
+        if (ShootingRangeManager.Instance != null)
+            ShootingRangeManager.Instance.RegisterShot();
     }
 
     private void ExecuteFire()
@@ -458,22 +331,15 @@ public class VRRifle : MonoBehaviour
         if (!infiniteAmmo) currentAmmo--;
 
         PlayGunshotAudio();
-
         if (muzzleFlash != null) muzzleFlash.Play();
-
+        if (avatarAnimator != null) avatarAnimator.SetTrigger("Shoot");
         SendHaptics(fireHapticIntensity, fireHapticDuration);
-        ApplyProceduralRecoil();
-        EjectShellCasing();
 
-        Vector3 origin = muzzlePoint != null ? muzzlePoint.position : transform.position;
-        Vector3 direction = muzzlePoint != null ? muzzlePoint.forward : transform.forward;
-
-        if (rearSight != null && frontSight != null)
-        {
-            direction = (frontSight.position - rearSight.position).normalized;
-        }
-
-        Vector3 hitPoint = origin + (direction * maxRange);
+        // Al disparar apuntando, la bala va exactamente hacia donde miras
+        Camera cam = GetPlayerCamera();
+        Vector3 origin    = (muzzlePoint != null) ? muzzlePoint.position : transform.position;
+        Vector3 direction = (isAiming && cam != null) ? cam.transform.forward : ((muzzlePoint != null) ? muzzlePoint.forward : transform.forward);
+        Vector3 hitPoint  = origin + direction * maxRange;
 
         if (Physics.Raycast(origin, direction, out RaycastHit hit, maxRange, hitLayers, QueryTriggerInteraction.Ignore))
         {
@@ -482,59 +348,21 @@ public class VRRifle : MonoBehaviour
             ShootingTarget target = hit.collider.GetComponentInParent<ShootingTarget>();
             if (target != null)
             {
-                float distToCenter = Vector3.Distance(hit.point, target.transform.position);
-                bool isBullseye = distToCenter < 0.25f;
-                target.Hit(hit.point, isBullseye);
+                float dist = Vector3.Distance(hit.point, target.transform.position);
+                target.Hit(hit.point, dist < 0.25f);
             }
 
             if (hit.rigidbody != null && !hit.rigidbody.isKinematic)
-            {
                 hit.rigidbody.AddForceAtPosition(direction * bulletImpactForce, hit.point, ForceMode.Impulse);
-            }
         }
 
         if (tracerLineRenderer != null)
-        {
             StartCoroutine(ShowTracerRoutine(origin, hitPoint));
-        }
     }
 
-    private void ApplyProceduralRecoil()
-    {
-        currentRecoilPos += new Vector3(0, 0, -recoilKickBack);
-        float sideJitter = Random.Range(-recoilKickSide, recoilKickSide);
-        currentRecoilRot += new Vector3(-recoilKickUp, sideJitter, -sideJitter * 0.5f);
-    }
-
-    private void EjectShellCasing()
-    {
-        if (shellEjectionPoint == null) return;
-
-        GameObject shell = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        shell.name = "Spent_Shell";
-        shell.transform.position = shellEjectionPoint.position;
-        shell.transform.rotation = Random.rotation;
-        shell.transform.localScale = new Vector3(0.008f, 0.012f, 0.008f);
-
-        MeshRenderer shellMr = shell.GetComponent<MeshRenderer>();
-        if (shellMaterial != null)
-        {
-            shellMr.sharedMaterial = shellMaterial;
-        }
-        else if (shellMr != null && shellMr.material != null)
-        {
-            shellMr.material.color = new Color(0.95f, 0.78f, 0.32f);
-        }
-
-        Rigidbody shellRb = shell.AddComponent<Rigidbody>();
-        shellRb.mass = 0.01f;
-
-        Vector3 ejectVelocity = shellEjectionPoint.right * Random.Range(1.8f, 2.5f) + shellEjectionPoint.up * Random.Range(1.0f, 1.8f);
-        shellRb.linearVelocity = ejectVelocity;
-        shellRb.angularVelocity = Random.insideUnitSphere * 20f;
-
-        Destroy(shell, 3.0f);
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // RECARGA
+    // ─────────────────────────────────────────────────────────────────────────
 
     public void TryReload()
     {
@@ -547,44 +375,43 @@ public class VRRifle : MonoBehaviour
         isReloading = true;
         PlaySound(reloadAudioClip, 0.8f);
         SendHaptics(0.4f, 0.2f);
-
         yield return new WaitForSeconds(reloadDuration);
-
         currentAmmo = magazineCapacity;
         SendHaptics(0.6f, 0.1f);
         isReloading = false;
     }
 
-    private void SendHaptics(float intensity, float duration)
-    {
-        if (grabInteractable != null && grabInteractable.isSelected)
-        {
-            foreach (var interactor in grabInteractable.interactorsSelecting)
-            {
-                if (interactor is XRBaseInputInteractor inputInteractor)
-                {
-                    inputInteractor.SendHapticImpulse(intensity, duration);
-                }
-            }
-        }
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUDIO Y EFECTOS
+    // ─────────────────────────────────────────────────────────────────────────
 
     private void PlayGunshotAudio()
     {
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
         if (fireAudioClip != null)
         {
-            audioSource.PlayOneShot(fireAudioClip, 1.0f);
+            audioSource.PlayOneShot(fireAudioClip, 1f);
+            return;
         }
-        else
-        {
-            audioSource.pitch = Random.Range(0.95f, 1.05f);
-            audioSource.PlayOneShot(GetOrCreateProceduralShotClip(), 0.9f);
-        }
+
+        audioSource.pitch = Random.Range(0.95f, 1.05f);
+        audioSource.PlayOneShot(GetOrCreateProceduralShotClip(), 0.9f);
     }
 
     private void PlaySound(AudioClip clip, float volume)
     {
-        if (clip != null) audioSource.PlayOneShot(clip, volume);
+        if (clip == null) return;
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        }
+        audioSource.PlayOneShot(clip, volume);
     }
 
     private static AudioClip proceduralShotClip;
@@ -592,16 +419,15 @@ public class VRRifle : MonoBehaviour
     {
         if (proceduralShotClip != null) return proceduralShotClip;
 
-        int sampleRate = 44100;
-        int length = (int)(sampleRate * 0.22f);
-        float[] samples = new float[length];
+        int     sampleRate = 44100;
+        int     length     = (int)(sampleRate * 0.22f);
+        float[] samples    = new float[length];
 
         for (int i = 0; i < length; i++)
         {
             float t = (float)i / length;
-            float noise = (Random.value * 2f - 1f) * Mathf.Exp(-t * 18f);
-            float thump = Mathf.Sin(t * 180f) * Mathf.Exp(-t * 22f);
-            samples[i] = (noise * 0.7f + thump * 0.6f);
+            samples[i] = (Random.value * 2f - 1f) * Mathf.Exp(-t * 18f) * 0.7f
+                       + Mathf.Sin(t * 180f) * Mathf.Exp(-t * 22f) * 0.6f;
         }
 
         proceduralShotClip = AudioClip.Create("Procedural_Rifle_Shot", length, 1, sampleRate, false);
@@ -611,11 +437,9 @@ public class VRRifle : MonoBehaviour
 
     private IEnumerator ShowTracerRoutine(Vector3 start, Vector3 end)
     {
+        if (tracerLineRenderer == null) yield break;
         if (tracerMaterial != null && tracerLineRenderer.sharedMaterial != tracerMaterial)
-        {
             tracerLineRenderer.sharedMaterial = tracerMaterial;
-        }
-
         tracerLineRenderer.enabled = true;
         tracerLineRenderer.SetPosition(0, start);
         tracerLineRenderer.SetPosition(1, end);
@@ -623,46 +447,32 @@ public class VRRifle : MonoBehaviour
         tracerLineRenderer.enabled = false;
     }
 
-    private void OnDrawGizmosSelected()
+    private void SendHaptics(float intensity, float duration)
     {
-        // 🔴 Boca del cañón (Muzzle)
-        if (muzzlePoint != null)
+        if (grabInteractable == null || !grabInteractable.isSelected) return;
+        foreach (var interactor in grabInteractable.interactorsSelecting)
         {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(muzzlePoint.position, 0.02f);
-            Gizmos.DrawRay(muzzlePoint.position, muzzlePoint.forward * 0.5f);
+            if (interactor is XRBaseInputInteractor ii)
+                ii.SendHapticImpulse(intensity, duration);
+        }
+    }
+
+    public Camera GetPlayerCamera()
+    {
+        if (playerCam != null && playerCam.gameObject.activeInHierarchy)
+            return playerCam;
+
+        playerCam = Camera.main;
+        if (playerCam != null) return playerCam;
+
+        XROrigin xrOrigin = FindAnyObjectByType<XROrigin>();
+        if (xrOrigin != null && xrOrigin.Camera != null)
+        {
+            playerCam = xrOrigin.Camera;
+            return playerCam;
         }
 
-        // 🟡 Ventana de expulsión (Ejection)
-        if (shellEjectionPoint != null)
-        {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(shellEjectionPoint.position, 0.015f);
-            Gizmos.DrawRay(shellEjectionPoint.position, shellEjectionPoint.right * 0.2f);
-        }
-
-        // 🟢 Miras de hierro (Sights)
-        if (frontSight != null)
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(frontSight.position, 0.01f);
-        }
-        if (rearSight != null)
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(rearSight.position, 0.01f);
-        }
-        if (frontSight != null && rearSight != null)
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawLine(rearSight.position, frontSight.position);
-        }
-
-        // 🔵 Punto de agarre (Grip)
-        if (attachPoint != null)
-        {
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawWireSphere(attachPoint.position, 0.025f);
-        }
+        playerCam = FindAnyObjectByType<Camera>();
+        return playerCam;
     }
 }
