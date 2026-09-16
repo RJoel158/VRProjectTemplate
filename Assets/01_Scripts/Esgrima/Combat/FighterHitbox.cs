@@ -1,12 +1,14 @@
 using System;
 using UnityEngine;
 using Esgrima.Data;
+using Esgrima.Core;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 namespace Esgrima.Combat
 {
     /// <summary>
-    /// Componente que recibe los impactos de la espada enemiga en el cuerpo del luchador
-    /// y delega el empuje a KnockbackController.
+    /// Componente que recibe los impactos de la espada enemiga en el cuerpo del luchador.
+    /// Si es el jugador, sigue dinámicamente la posición del visor VR (Headset) y notifica al GameManager.
     /// </summary>
     public class FighterHitbox : MonoBehaviour
     {
@@ -27,6 +29,8 @@ namespace Esgrima.Combat
 
         public event Action<Vector3, float> OnHitTaken;
 
+        private Transform vrCameraTransform;
+
         private void Awake()
         {
             if (knockbackController == null)
@@ -37,6 +41,24 @@ namespace Esgrima.Combat
             if (audioSource == null)
             {
                 audioSource = GetComponent<AudioSource>();
+            }
+        }
+
+        private void Start()
+        {
+            if (isPlayer && Camera.main != null)
+            {
+                vrCameraTransform = Camera.main.transform;
+            }
+        }
+
+        private void Update()
+        {
+            // Si es el jugador de VR, mantener el collider centrado exactamente donde está la cabeza físicamente
+            if (isPlayer && vrCameraTransform != null)
+            {
+                Vector3 headPos = vrCameraTransform.position;
+                transform.position = new Vector3(headPos.x, headPos.y * 0.5f, headPos.z);
             }
         }
 
@@ -71,7 +93,28 @@ namespace Esgrima.Combat
                 knockbackController.ApplyKnockback(hitDirection, finalForce);
             }
 
+            // Si es el jugador recibiendo el golpe, vibrar los mandos
+            if (isPlayer)
+            {
+                TriggerHapticsOnPlayer();
+            }
+
+            // Notificar al MatchManager para registrar el golpe y actualizar marcador
+            if (EsgrimaMatchManager.Instance != null)
+            {
+                EsgrimaMatchManager.Instance.RegisterFighterHit(isPlayer, finalForce);
+            }
+
             OnHitTaken?.Invoke(hitPoint, finalForce);
+        }
+
+        private void TriggerHapticsOnPlayer()
+        {
+            var interactors = UnityEngine.Object.FindObjectsByType<XRBaseInputInteractor>(FindObjectsSortMode.None);
+            foreach (var interactor in interactors)
+            {
+                interactor.SendHapticImpulse(0.7f, 0.2f);
+            }
         }
     }
 }

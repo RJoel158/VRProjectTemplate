@@ -13,6 +13,8 @@ namespace Esgrima.Combat
         [Header("Components")]
         [SerializeField] private Rigidbody rb;
         [SerializeField] private CharacterController characterController;
+        [Tooltip("Transform que será desplazado por el retroceso. Si es nulo, desplaza este mismo GameObject.")]
+        [SerializeField] private Transform targetTransformToMove;
 
         [Header("Settings")]
         [Tooltip("Duración en segundos del desplazamiento de retroceso.")]
@@ -80,7 +82,8 @@ namespace Esgrima.Combat
                 }
                 else
                 {
-                    transform.position += stepVector;
+                    Transform targetTrans = targetTransformToMove != null ? targetTransformToMove : transform;
+                    targetTrans.position += stepVector;
                 }
 
                 yield return null;

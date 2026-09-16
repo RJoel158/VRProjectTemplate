@@ -183,6 +183,46 @@ namespace Esgrima.Core
         }
 
         /// <summary>
+        /// Registra un impacto asestado en combate (jugador o rival).
+        /// </summary>
+        public void RegisterFighterHit(bool playerWasHit, float force)
+        {
+            if (matchOver) return;
+
+            if (playerWasHit)
+            {
+                aiScore++;
+                OnScoreChanged?.Invoke(playerScore, aiScore);
+                OnRoundEnded?.Invoke("¡Te han golpeado! Punto para el Rival");
+
+                int targetScore = matchConfig != null ? matchConfig.roundsToWin : 3;
+                if (aiScore >= targetScore)
+                {
+                    EndMatch(false);
+                }
+            }
+            else
+            {
+                playerScore++;
+                if (currentSaveData != null) currentSaveData.totalHitsLanded++;
+
+                if (ScoreManager.Instance != null)
+                {
+                    ScoreManager.Instance.AddPoints(50);
+                }
+
+                OnScoreChanged?.Invoke(playerScore, aiScore);
+                OnRoundEnded?.Invoke("¡Estocada válida! ¡Punto para ti!");
+
+                int targetScore = matchConfig != null ? matchConfig.roundsToWin : 3;
+                if (playerScore >= targetScore)
+                {
+                    EndMatch(true);
+                }
+            }
+        }
+
+        /// <summary>
         /// Reinicia por completo el duelo (Match) a 0-0.
         /// </summary>
         public void RestartFullMatch()
