@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: EsgrimaMatchConfig
   m_EditorClassIdentifier: Esgrima.Data::EsgrimaMatchConfigSO
   roundsToWin: 3
-  ringRadius: 3.5
+  ringRadius: 5
   fallYThreshold: -0.6
   roundResetDelay: 2.2
