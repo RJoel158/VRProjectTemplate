@@ -57,6 +57,11 @@ namespace Tiro.Weapons
             currentAmmo = maxAmmo;
         }
 
+        private void OnEnable()
+        {
+            BindToRightHand();
+        }
+
         private void Start()
         {
             BindToRightHand();
@@ -75,15 +80,7 @@ namespace Tiro.Weapons
 
         public void BindToRightHand()
         {
-            var controllers = FindObjectsByType<UnityEngine.XR.Interaction.Toolkit.XRBaseController>(FindObjectsSortMode.None);
-            foreach (var c in controllers)
-            {
-                if (c.name.ToLower().Contains("right"))
-                {
-                    boundHand = c.transform;
-                    break;
-                }
-            }
+            boundHand = FindRightHandTransform();
 
             if (boundHand != null)
             {
@@ -98,6 +95,74 @@ namespace Tiro.Weapons
                     rb.useGravity = false;
                 }
             }
+        }
+
+        private Transform FindRightHandTransform()
+        {
+            // 1. Buscar controladores XRBaseController
+            var controllers = FindObjectsByType<UnityEngine.XR.Interaction.Toolkit.XRBaseController>(FindObjectsSortMode.None);
+            foreach (var c in controllers)
+            {
+                string n = c.name.ToLower();
+                if (n.Contains("right"))
+                {
+                    return c.transform;
+                }
+            }
+
+            // 2. Buscar en XROrigin CameraFloorOffset
+            var origin = FindAnyObjectByType<Unity.XR.CoreUtils.XROrigin>();
+            if (origin != null && origin.CameraFloorOffsetObject != null)
+            {
+                var children = origin.CameraFloorOffsetObject.GetComponentsInChildren<Transform>(true);
+                foreach (var t in children)
+                {
+                    string lower = t.name.ToLower();
+                    if (lower.Contains("right") && (lower.Contains("controller") || lower.Contains("hand")))
+                    {
+                        if (!lower.Contains("ray") && !lower.Contains("poke") && !lower.Contains("teleport") && !lower.Contains("visual"))
+                        {
+                            return t;
+                        }
+                    }
+                }
+            }
+
+            // 3. Buscar interactores XR con "right"
+            var interactors = FindObjectsByType<XRBaseInputInteractor>(FindObjectsSortMode.None);
+            foreach (var it in interactors)
+            {
+                string n = it.name.ToLower();
+                if (n.Contains("right"))
+                {
+                    return it.transform;
+                }
+                if (it.transform.parent != null && it.transform.parent.name.ToLower().Contains("right"))
+                {
+                    return it.transform.parent;
+                }
+            }
+
+            // 4. Búsqueda exhaustiva por nombre en la jerarquía
+            var allGos = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            Transform candidate = null;
+            for (int i = 0; i < allGos.Length; i++)
+            {
+                string n = allGos[i].name.ToLower();
+                if (n == "right hand" || n == "right controller" || n == "righthand controller" || n == "righthand")
+                {
+                    return allGos[i].transform;
+                }
+                if (n.Contains("right") && (n.Contains("hand") || n.Contains("controller")))
+                {
+                    if (!n.Contains("visual") && !n.Contains("callout") && !n.Contains("mesh"))
+                    {
+                        if (candidate == null) candidate = allGos[i].transform;
+                    }
+                }
+            }
+
+            return candidate;
         }
 
         private void Update()
@@ -199,11 +264,30 @@ namespace Tiro.Weapons
             if (Physics.Raycast(origin, direction, out RaycastHit hit, range, ~0, QueryTriggerInteraction.Collide))
             {
                 hitPoint = hit.point;
+
+                // 1. Dianas olímpicas fijas
                 var target = hit.collider.GetComponentInParent<TargetBoard>();
                 if (target != null)
                 {
                     target.RegisterBulletHit(hit.point, hit.normal);
                 }
+
+                // 2. Galería reactiva de pared
+                var wallNode = hit.collider.GetComponentInParent<DynamicTargetNode>();
+                if (wallNode != null)
+                {
+                    var gallery = wallNode.GetComponentInParent<DynamicWallTargetGallery>();
+                    if (gallery != null) gallery.RegisterNodeHit(wallNode, hit.point);
+                }
+
+                // 3. Platos voladores
+                var clay = hit.collider.GetComponentInParent<ClayPigeon>();
+                if (clay != null)
+                {
+                    clay.RegisterShotHit(hit.point, direction);
+                }
+
+                // 4. Botones interactivos en panel de menú
                 var selector = hit.collider.GetComponentInParent<Tiro.UI.DisciplineSelectorPanel>();
                 if (selector != null)
                 {
