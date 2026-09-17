@@ -1,6 +1,4 @@
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
-using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using Unity.XR.CoreUtils;
 
@@ -8,8 +6,8 @@ namespace Esgrima.Combat
 {
     /// <summary>
     /// Vincula la espada directamente al mando derecho (Oculus Right Controller)
-    /// estilo Wii Sports Resort. Garantiza orientación frontal perfecta, cero temblores
-    /// y respuesta 1:1 absoluta sin depender de físicas erráticas.
+    /// estilo Wii Sports Resort. Garantiza orientación frontal fija, cero temblores
+    /// y respuesta 1:1 absoluta sin depender de físicas erráticas ni recálculos en LateUpdate.
     /// </summary>
     [RequireComponent(typeof(VRSword))]
     [RequireComponent(typeof(Rigidbody))]
@@ -17,24 +15,22 @@ namespace Esgrima.Combat
     {
         [Header("Grip Positioning")]
         [Tooltip("Posición relativa de la empuñadura dentro de la palma del mando.")]
-        [SerializeField] private Vector3 localGripPosition = new Vector3(0.01f, -0.04f, 0.08f);
+        [SerializeField] private Vector3 localGripPosition = new Vector3(0f, -0.04f, 0.08f);
 
-        [Tooltip("Vector de inclinación de la hoja: hacia adelante (+Z) con ligero ángulo hacia arriba (+Y).")]
-        [SerializeField] private Vector3 bladeForwardAim = new Vector3(0f, 0.22f, 0.97f);
+        [Tooltip("Rotación Euler para orientar la hoja hacia adelante (+Z) con ligero ángulo superior (+Y).")]
+        [SerializeField] private Vector3 bladeEulerRotation = new Vector3(75f, 0f, 0f);
 
         [Header("Target Hand Reference (Opcional, se auto-detecta si está vacío)")]
         [SerializeField] private Transform rightHandTarget;
 
         private Rigidbody rb;
         private Collider swordCollider;
-        private XRGrabInteractable grabInteractable;
         private bool isBound = false;
 
         private void Awake()
         {
             rb = GetComponent<Rigidbody>();
             swordCollider = GetComponent<Collider>();
-            grabInteractable = GetComponent<XRGrabInteractable>();
 
             if (rb != null)
             {
@@ -46,16 +42,6 @@ namespace Esgrima.Combat
             {
                 swordCollider.isTrigger = true;
             }
-
-            // Si tiene XRGrabInteractable, configurarlo para agarre fijo permanente (sticky)
-            if (grabInteractable != null)
-            {
-                grabInteractable.movementType = XRBaseInteractable.MovementType.Instantaneous;
-                grabInteractable.throwOnDetach = false;
-                grabInteractable.trackPosition = true;
-                grabInteractable.trackRotation = true;
-                grabInteractable.selectEntered.AddListener(OnGrabSelected);
-            }
         }
 
         private void Start()
@@ -65,31 +51,17 @@ namespace Esgrima.Combat
 
         private void LateUpdate()
         {
-            // Re-vincular si aún no se ha enlazado o si el mando se inicializó después del frame 1
-            if (!isBound || transform.parent == null)
+            // Solo re-vincular si aún no se ha enlazado o se perdió el parentesco.
+            // NO sobreescribir transform cada frame para no interferir con el Late-Latching de XR (elimina temblores).
+            if (!isBound || transform.parent == null || transform.parent != rightHandTarget)
             {
-                BindToRightHand();
-            }
-            else if (rightHandTarget != null && transform.parent == rightHandTarget)
-            {
-                // Mantener fijación firme en mano
-                transform.localPosition = localGripPosition;
-                Vector3 targetAim = bladeForwardAim.sqrMagnitude > 0.001f ? bladeForwardAim.normalized : Vector3.forward;
-                transform.localRotation = Quaternion.FromToRotation(Vector3.up, targetAim);
-            }
-        }
-
-        private void OnGrabSelected(SelectEnterEventArgs args)
-        {
-            if (args.interactorObject != null)
-            {
-                rightHandTarget = args.interactorObject.transform;
                 BindToRightHand();
             }
         }
 
         /// <summary>
-        /// Localiza el mando derecho del XR Origin y emparenta la espada directamente a él.
+        /// Localiza el mando derecho del XR Origin y emparenta la espada como hijo directo.
+        /// Al ser hijo del mando, Unity sincroniza posición y rotación automáticamente al 100%.
         /// </summary>
         public void BindToRightHand()
         {
@@ -102,17 +74,14 @@ namespace Esgrima.Combat
             {
                 transform.SetParent(rightHandTarget, false);
                 transform.localPosition = localGripPosition;
-
-                // Orientar matemáticamente la hoja (Vector3.up en el modelo) hacia adelante del mando
-                Vector3 targetAim = bladeForwardAim.sqrMagnitude > 0.001f ? bladeForwardAim.normalized : Vector3.forward;
-                transform.localRotation = Quaternion.FromToRotation(Vector3.up, targetAim);
+                transform.localRotation = Quaternion.Euler(bladeEulerRotation);
 
                 isBound = true;
 
-                // Ignorar colisiones con el cuerpo del jugador para máxima fluidez
-                Collider[] playerCols = rightHandTarget.root.GetComponentsInChildren<Collider>();
+                // Ignorar colisiones con el cuerpo del jugador para evitar cualquier interferencia
                 if (swordCollider != null)
                 {
+                    Collider[] playerCols = rightHandTarget.root.GetComponentsInChildren<Collider>();
                     for (int i = 0; i < playerCols.Length; i++)
                     {
                         if (playerCols[i] != swordCollider)
@@ -126,8 +95,8 @@ namespace Esgrima.Combat
 
         private Transform FindRightHandTransform()
         {
-            // 1. Buscar controladores XR por tipo
-            var controllers = Object.FindObjectsByType<XRBaseController>(FindObjectsSortMode.None);
+            // 1. Buscar controladores XR
+            var controllers = Object.FindObjectsByType<UnityEngine.XR.Interaction.Toolkit.XRBaseController>(FindObjectsSortMode.None);
             foreach (var c in controllers)
             {
                 string n = c.name.ToLower();
@@ -137,7 +106,7 @@ namespace Esgrima.Combat
                 }
             }
 
-            // 2. Buscar dentro de la jerarquía de XROrigin CameraFloorOffset
+            // 2. Buscar en XROrigin CameraFloorOffset
             var origin = Object.FindAnyObjectByType<XROrigin>();
             if (origin != null && origin.CameraFloorOffsetObject != null)
             {
@@ -155,7 +124,7 @@ namespace Esgrima.Combat
                 }
             }
 
-            // 3. Buscar interactores con "right" en el nombre o en su padre
+            // 3. Buscar interactores con "right"
             var interactors = Object.FindObjectsByType<XRBaseInputInteractor>(FindObjectsSortMode.None);
             foreach (var it in interactors)
             {
@@ -170,7 +139,7 @@ namespace Esgrima.Combat
                 }
             }
 
-            // 4. Buscar por nombre exacto en toda la jerarquía de la escena
+            // 4. Buscar por nombre en la jerarquía
             var allGos = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
             Transform candidate = null;
             for (int i = 0; i < allGos.Length; i++)
@@ -190,14 +159,6 @@ namespace Esgrima.Combat
             }
 
             return candidate;
-        }
-
-        private void OnDestroy()
-        {
-            if (grabInteractable != null)
-            {
-                grabInteractable.selectEntered.RemoveListener(OnGrabSelected);
-            }
         }
     }
 }

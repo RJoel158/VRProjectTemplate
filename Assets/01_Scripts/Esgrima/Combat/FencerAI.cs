@@ -158,31 +158,21 @@ namespace Esgrima.Combat
             }
             moveDir += rightDir * (currentStrafeSign * strafeSpd);
 
-            // 3. Delimitación de seguridad del Ring (evita caídas al vacío por movimiento propio)
+            // 3. Delimitación de seguridad del Ring para el paso voluntario (la IA no camina fuera del ring por sí sola)
             Vector3 currentPos = transform.position;
             Vector2 hPos = new Vector2(currentPos.x, currentPos.z);
             float safeLimit = config != null ? config.maxSafeArenaRadius : 3.6f;
 
-            // Si se acerca a la zona de peligro del borde, redirigir hacia el centro (0, 0)
-            if (hPos.magnitude > safeLimit * 0.8f)
+            // Si su paso lo acerca al borde, redirigir su caminata hacia el centro (0, 0)
+            if (hPos.magnitude > safeLimit * 0.85f)
             {
                 Vector3 toCenter = -new Vector3(currentPos.x, 0, currentPos.z).normalized;
-                moveDir = Vector3.Lerp(moveDir, toCenter * baseSpeed, 0.8f);
+                moveDir = Vector3.Lerp(moveDir, toCenter * baseSpeed, 0.85f);
             }
 
-            // Aplicar traslación horizontal
+            // Aplicar traslación horizontal de los pasos del rival
+            // (NO recortar transform.position para permitir que los impactos del jugador lo empujen fuera del ring)
             transform.position += moveDir * Time.deltaTime;
-
-            // Bloqueo duro e inviolable contra la caída por paso en falso
-            Vector3 clampedPos = transform.position;
-            Vector2 clampedH = new Vector2(clampedPos.x, clampedPos.z);
-            if (clampedH.magnitude > safeLimit)
-            {
-                clampedH = clampedH.normalized * safeLimit;
-                clampedPos.x = clampedH.x;
-                clampedPos.z = clampedH.y;
-                transform.position = clampedPos;
-            }
         }
 
         public void StartAI()
