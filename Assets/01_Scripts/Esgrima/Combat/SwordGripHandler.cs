@@ -15,10 +15,10 @@ namespace Esgrima.Combat
     {
         [Header("Grip Alignment")]
         [Tooltip("Rotación angular en grados para orientar la hoja hacia adelante del puño.")]
-        [SerializeField] private Vector3 gripEulerRotation = new Vector3(70f, 0f, 0f);
+        [SerializeField] private Vector3 gripEulerRotation = new Vector3(-80f, 0f, 0f);
 
         [Tooltip("Desplazamiento local de la empuñadura respecto a la palma del mando.")]
-        [SerializeField] private Vector3 gripLocalOffset = new Vector3(0f, 0f, 0.04f);
+        [SerializeField] private Vector3 gripLocalOffset = new Vector3(0f, -0.03f, 0.05f);
 
         private XRGrabInteractable grabInteractable;
         private Rigidbody rb;

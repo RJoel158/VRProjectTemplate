@@ -724,8 +724,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Esgrima.Combat::SwordGripHandler
   gripAttachPoint: {fileID: 0}
-  gripEulerRotation: {x: 75, y: 0, z: 0}
-  gripLocalOffset: {x: 0, y: -0.03, z: 0.04}
+  gripEulerRotation: {x: -80, y: 0, z: 0}
+  gripLocalOffset: {x: 0, y: -0.03, z: 0.05}
 --- !u!114 &51000009
 MonoBehaviour:
   m_ObjectHideFlags: 0
