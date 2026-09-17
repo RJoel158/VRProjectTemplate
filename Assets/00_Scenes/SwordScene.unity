@@ -683,9 +683,13 @@ MonoBehaviour:
   m_AllowGazeInteraction: 0
   m_AllowGazeSelect: 0
   m_AttachTransform: {fileID: 51000022}
+  m_UseDynamicAttach: 0
+  m_MatchAttachPosition: 1
+  m_MatchAttachRotation: 1
+  m_SnapToColliderVolume: 0
   m_MovementType: 2
   m_FarAttachMode: 1
-  m_ThrowOnDetach: 1
+  m_ThrowOnDetach: 0
   m_ThrowSmoothingDuration: 0.25
   m_ThrowVelocityScale: 1.5
 --- !u!114 &51000007
@@ -714,13 +718,14 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 51000001}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c7de7079f69ad924886245dabea54c91, type: 3}
+  m_Script: {fileID: 11500000, guid: c62eba64224f493588913b892e07e75e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Esgrima.Combat::AutoGrabOnTouch
-  autoSnapOnTouch: 0
-  retainGripInCombat: 0
+  m_EditorClassIdentifier: Esgrima.Combat::SwordGripHandler
+  gripAttachPoint: {fileID: 0}
+  gripEulerRotation: {x: 75, y: 0, z: 0}
+  gripLocalOffset: {x: 0, y: -0.03, z: 0.04}
 --- !u!114 &51000009
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -728,7 +733,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 51000001}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b4f2f658073e4974d800c553fe797db1, type: 3}
   m_Name: 
