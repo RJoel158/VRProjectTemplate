@@ -117,7 +117,7 @@ namespace Tiro.Targets
 
             // Reemplazar collider por un BoxCollider de dimensiones óptimas para impacto consistente de perdigones
             var defaultCol = clayObj.GetComponent<Collider>();
-            if (defaultCol != null) Object.Destroy(defaultCol);
+            if (defaultCol != null) Destroy(defaultCol);
             var hitCol = clayObj.AddComponent<BoxCollider>();
             hitCol.size = new Vector3(1.15f, 3.5f, 1.15f);
 
