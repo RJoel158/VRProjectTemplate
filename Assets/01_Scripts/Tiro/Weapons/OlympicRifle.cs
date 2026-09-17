@@ -54,6 +54,13 @@ namespace Tiro.Weapons
         private void Awake()
         {
             if (audioSource == null) audioSource = GetComponent<AudioSource>();
+            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+
+            audioSource.spatialBlend = 0f;
+            audioSource.volume = 1f;
+            audioSource.playOnAwake = false;
+            audioSource.mute = false;
+
             currentAmmo = maxAmmo;
         }
 
@@ -251,9 +258,10 @@ namespace Tiro.Weapons
 
             if (currentAmmo <= 0)
             {
-                if (audioSource != null && rifleData != null && rifleData.dryFireSound != null)
+                if (audioSource != null)
                 {
-                    audioSource.PlayOneShot(rifleData.dryFireSound);
+                    AudioClip drySound = (rifleData != null && rifleData.dryFireSound != null) ? rifleData.dryFireSound : Tiro.Audio.ShootingSoundFX.GetDryFireSound();
+                    audioSource.PlayOneShot(drySound);
                 }
                 return;
             }
@@ -316,9 +324,10 @@ namespace Tiro.Weapons
             StartCoroutine(RenderTracer(origin, hitPoint));
 
             if (muzzleFlash != null) muzzleFlash.Play();
-            if (audioSource != null && rifleData != null && rifleData.gunshotSound != null)
+            if (audioSource != null)
             {
-                audioSource.PlayOneShot(rifleData.gunshotSound);
+                AudioClip shotSound = (rifleData != null && rifleData.gunshotSound != null) ? rifleData.gunshotSound : Tiro.Audio.ShootingSoundFX.GetGunshotRifle();
+                audioSource.PlayOneShot(shotSound);
             }
 
             TriggerHaptics();
@@ -351,9 +360,10 @@ namespace Tiro.Weapons
             isReloading = true;
             UpdateDisplay();
 
-            if (audioSource != null && rifleData != null && rifleData.reloadSound != null)
+            if (audioSource != null)
             {
-                audioSource.PlayOneShot(rifleData.reloadSound);
+                AudioClip reloadClip = (rifleData != null && rifleData.reloadSound != null) ? rifleData.reloadSound : Tiro.Audio.ShootingSoundFX.GetReloadSound();
+                audioSource.PlayOneShot(reloadClip);
             }
 
             yield return new WaitForSeconds(0.6f);

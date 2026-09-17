@@ -89,18 +89,33 @@ namespace Tiro.Core
             var cameras = FindObjectsByType<Camera>(FindObjectsSortMode.None);
             foreach (var cam in cameras)
             {
-                if (cam.GetComponentInParent<Unity.XR.CoreUtils.XROrigin>() == null)
+                if (cam.name != "Main Camera" && cam.GetComponentInParent<Unity.XR.CoreUtils.XROrigin>() == null)
                 {
                     Destroy(cam.gameObject);
                 }
             }
 
+            // Preservar o crear el AudioListener en la cámara activa para que todos los sonidos se escuchen siempre
             var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
-            foreach (var l in listeners)
+            if (listeners.Length == 0)
             {
-                if (l.GetComponentInParent<Unity.XR.CoreUtils.XROrigin>() == null)
+                Camera targetCam = Camera.main;
+                if (targetCam == null)
                 {
-                    Destroy(l);
+                    var allCams = FindObjectsByType<Camera>(FindObjectsSortMode.None);
+                    if (allCams.Length > 0) targetCam = allCams[0];
+                }
+                if (targetCam != null)
+                {
+                    targetCam.gameObject.AddComponent<AudioListener>();
+                }
+            }
+            else if (listeners.Length > 1)
+            {
+                // Si hay más de 1, conservar el primero y eliminar duplicados
+                for (int i = 1; i < listeners.Length; i++)
+                {
+                    Destroy(listeners[i]);
                 }
             }
         }

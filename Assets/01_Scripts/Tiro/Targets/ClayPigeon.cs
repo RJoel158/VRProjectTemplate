@@ -67,13 +67,16 @@ namespace Tiro.Targets
             if (isBroken) return;
             isBroken = true;
 
-            // 1. Efecto de fragmentos cerámicos
+            // 1. Sonido de estallido cerámico en el aire
+            AudioSource.PlayClipAtPoint(Tiro.Audio.ShootingSoundFX.GetClayShatterSound(), hitPoint, 1f);
+
+            // 2. Efecto de fragmentos cerámicos
             SpawnShatterParticles(hitPoint, hitDirection);
 
-            // 2. Notificar puntos
+            // 3. Notificar puntos
             OnClayBroken?.Invoke(this, pointValue, hitPoint);
 
-            // 3. Destruir el plato
+            // 4. Destruir el plato
             Destroy(gameObject);
         }
 

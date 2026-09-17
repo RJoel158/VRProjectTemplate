@@ -83,6 +83,14 @@ namespace Tiro.Weapons
         private void Awake()
         {
             if (audioSource == null) audioSource = GetComponent<AudioSource>();
+            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+
+            // Configurar AudioSource para entrega estéreo directa, nítida y a máximo volumen al jugador
+            audioSource.spatialBlend = 0f;
+            audioSource.volume = 1f;
+            audioSource.playOnAwake = false;
+            audioSource.mute = false;
+
             grabInteractable = GetComponent<XRGrabInteractable>();
 
             if (slideTransform != null)
@@ -490,9 +498,10 @@ namespace Tiro.Weapons
                 muzzleFlashParticles.Play();
             }
 
-            if (pistolData != null && pistolData.gunshotSound != null && audioSource != null)
+            if (audioSource != null)
             {
-                audioSource.PlayOneShot(pistolData.gunshotSound);
+                AudioClip shotSound = (pistolData != null && pistolData.gunshotSound != null) ? pistolData.gunshotSound : Tiro.Audio.ShootingSoundFX.GetGunshotPistol();
+                audioSource.PlayOneShot(shotSound);
             }
 
             // 4. Retroceso de corredera y cabeceo
@@ -568,9 +577,10 @@ namespace Tiro.Weapons
             isReloading = true;
             UpdateAmmoDisplay();
 
-            if (pistolData != null && pistolData.reloadSound != null && audioSource != null)
+            if (audioSource != null)
             {
-                audioSource.PlayOneShot(pistolData.reloadSound);
+                AudioClip reloadClip = (pistolData != null && pistolData.reloadSound != null) ? pistolData.reloadSound : Tiro.Audio.ShootingSoundFX.GetReloadSound();
+                audioSource.PlayOneShot(reloadClip);
             }
 
             // Breve vibración de recarga
@@ -589,9 +599,10 @@ namespace Tiro.Weapons
 
         private void PlayDryFireSound()
         {
-            if (pistolData != null && pistolData.dryFireSound != null && audioSource != null)
+            if (audioSource != null)
             {
-                audioSource.PlayOneShot(pistolData.dryFireSound);
+                AudioClip dryClip = (pistolData != null && pistolData.dryFireSound != null) ? pistolData.dryFireSound : Tiro.Audio.ShootingSoundFX.GetDryFireSound();
+                audioSource.PlayOneShot(dryClip);
             }
             SendHaptic(0.25f, 0.05f);
         }

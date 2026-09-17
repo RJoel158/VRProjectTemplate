@@ -143,9 +143,10 @@ namespace Tiro.Targets
             var clay = clayObj.AddComponent<ClayPigeon>();
             clay.OnClayBroken += HandleClayBroken;
 
-            if (audioSource != null && launchSound != null)
+            if (audioSource != null)
             {
-                audioSource.PlayOneShot(launchSound);
+                AudioClip clip = launchSound != null ? launchSound : Tiro.Audio.ShootingSoundFX.GetClayLaunchSound();
+                audioSource.PlayOneShot(clip);
             }
 
             return clay;
