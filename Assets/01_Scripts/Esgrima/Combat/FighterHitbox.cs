@@ -23,6 +23,8 @@ namespace Esgrima.Combat
         [Header("Feedback")]
         [SerializeField] private AudioSource audioSource;
         [SerializeField] private ParticleSystem hitVFXPrefab;
+        [Tooltip("Tiempo mínimo entre impactos recibidos para evitar retrocesos múltiples en una misma pasada.")]
+        [SerializeField] private float hitCooldown = 0.45f;
 
         public bool IsPlayer => isPlayer;
         public FighterConfigSO Config => fighterConfig;
@@ -30,6 +32,7 @@ namespace Esgrima.Combat
         public event Action<Vector3, float> OnHitTaken;
 
         private Transform vrCameraTransform;
+        private float lastHitTimestamp = -10f;
 
         private void Awake()
         {
@@ -72,6 +75,10 @@ namespace Esgrima.Combat
         /// </summary>
         public void TakeHit(Vector3 hitPoint, Vector3 hitDirection, float baseKnockback, AudioClip hitAudio = null)
         {
+            // Cooldown de invulnerabilidad post-impacto para evitar empujes repetidos en falso
+            if (Time.time - lastHitTimestamp < hitCooldown) return;
+            lastHitTimestamp = Time.time;
+
             float multiplier = fighterConfig != null ? fighterConfig.knockbackMultiplier : 1.0f;
             bool wasParryCounter = false;
 

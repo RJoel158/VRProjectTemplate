@@ -24,4 +24,4 @@ MonoBehaviour:
   strafeSpeed: 0.85
   maxSafeArenaRadius: 3.6
   comboChance: 0.5
-  parryVulnerabilityMultiplier: 2.8
+  parryVulnerabilityMultiplier: 1.75
