@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76738feab0a929f42a69e508e2783427, type: 3}
   m_Name: EsgrimaMatchConfig
   m_EditorClassIdentifier: Esgrima.Data::EsgrimaMatchConfigSO
-  roundsToWin: 3
+  roundsToWin: 5
   ringRadius: 5
   fallYThreshold: -0.6
   roundResetDelay: 2.2

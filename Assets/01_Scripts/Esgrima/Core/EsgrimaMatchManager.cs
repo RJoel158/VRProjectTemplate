@@ -121,35 +121,19 @@ namespace Esgrima.Core
             string message;
             if (isPlayer)
             {
-                aiScore++;
-                message = "¡Caíste fuera del Ring! Punto para el Rival";
+                message = "¡Caíste fuera de la arena! DERROTA AUTOMÁTICA";
+                OnRoundEnded?.Invoke(message);
+                EndMatch(false);
             }
             else
             {
-                playerScore++;
-                message = "¡Caída del Rival! ¡Punto para ti!";
-
-                // Registrar en ScoreManager global si existe
+                message = "¡El rival cayó de la arena! ¡VICTORIA AUTOMÁTICA!";
                 if (ScoreManager.Instance != null)
                 {
-                    ScoreManager.Instance.AddPoints(100);
+                    ScoreManager.Instance.AddPoints(300);
                 }
-            }
-
-            OnScoreChanged?.Invoke(playerScore, aiScore);
-            OnRoundEnded?.Invoke(message);
-
-            int targetScore = matchConfig != null ? matchConfig.roundsToWin : 3;
-
-            if (playerScore >= targetScore || aiScore >= targetScore)
-            {
-                EndMatch(playerScore >= targetScore);
-            }
-            else
-            {
-                currentRound++;
-                float delay = matchConfig != null ? matchConfig.roundResetDelay : 2.0f;
-                StartCoroutine(RestartRoundAfterDelay(delay));
+                OnRoundEnded?.Invoke(message);
+                EndMatch(true);
             }
         }
 
@@ -201,7 +185,7 @@ namespace Esgrima.Core
                 OnScoreChanged?.Invoke(playerScore, aiScore);
                 OnRoundEnded?.Invoke("¡Te han golpeado! Punto para el Rival");
 
-                int targetScore = matchConfig != null ? matchConfig.roundsToWin : 3;
+                int targetScore = matchConfig != null ? matchConfig.roundsToWin : 5;
                 if (aiScore >= targetScore)
                 {
                     EndMatch(false);
@@ -222,7 +206,7 @@ namespace Esgrima.Core
                 string msg = wasParryCounter ? "¡PARRY Y CONTRAATAQUE CRÍTICO!" : "¡Estocada válida! ¡Punto para ti!";
                 OnRoundEnded?.Invoke(msg);
 
-                int targetScore = matchConfig != null ? matchConfig.roundsToWin : 3;
+                int targetScore = matchConfig != null ? matchConfig.roundsToWin : 5;
                 if (playerScore >= targetScore)
                 {
                     EndMatch(true);
