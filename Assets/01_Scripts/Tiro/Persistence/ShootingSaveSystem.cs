@@ -8,6 +8,9 @@ namespace Tiro.Persistence
     public class ShootingSaveData
     {
         public int highestScore = 0;
+        public int rifleHighScore = 0;
+        public int pistolHighScore = 0;
+        public int clayHighScore = 0;
         public int totalShotsFired = 0;
         public int totalHitsOnTarget = 0;
         public int totalBullseyes = 0;

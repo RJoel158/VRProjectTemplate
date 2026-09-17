@@ -431,7 +431,24 @@ namespace Tiro.Weapons
             {
                 targetHitPoint = hit.point;
 
-                // Chequear si impactó una diana olímpica
+                // 1. Dianas reactivas en pared dinámica
+                DynamicTargetNode wallNode = hit.collider.GetComponentInParent<DynamicTargetNode>();
+                if (wallNode != null)
+                {
+                    hitTarget = true;
+                    var gallery = wallNode.GetComponentInParent<DynamicWallTargetGallery>();
+                    if (gallery != null) gallery.RegisterNodeHit(wallNode, hit.point);
+                }
+
+                // 2. Platos voladores (Clay Pigeon)
+                ClayPigeon clay = hit.collider.GetComponentInParent<ClayPigeon>();
+                if (clay != null)
+                {
+                    hitTarget = true;
+                    clay.RegisterShotHit(hit.point, direction);
+                }
+
+                // 3. Dianas olímpicas concéntricas fijas
                 TargetBoard targetBoard = hit.collider.GetComponentInParent<TargetBoard>();
                 if (targetBoard != null)
                 {
@@ -440,7 +457,17 @@ namespace Tiro.Weapons
                 }
                 else
                 {
-                    SpawnImpactEffect(hit.point, hit.normal);
+                    // 4. Botones interactivos en el panel de menú
+                    var selector = hit.collider.GetComponentInParent<Tiro.UI.DisciplineSelectorPanel>();
+                    if (selector != null)
+                    {
+                        hitTarget = true;
+                        selector.HandleShotOnButton(hit.collider.name.ToLower());
+                    }
+                    else if (!hitTarget)
+                    {
+                        SpawnImpactEffect(hit.point, hit.normal);
+                    }
                 }
             }
 

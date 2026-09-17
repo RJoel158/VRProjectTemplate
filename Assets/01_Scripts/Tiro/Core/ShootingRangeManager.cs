@@ -9,10 +9,17 @@ using Tiro.Persistence;
 
 namespace Tiro.Core
 {
+    public enum ShootingDiscipline
+    {
+        OlympicRifleDistance = 0,   // 1. Rifle de Precisión (10m, 25m, 50m)
+        DynamicPistolWall = 1,      // 2. Pistola Rápida Dinámica (Pared cercana)
+        ClayPigeonShotgun = 2       // 3. Tiro al Plato (Escopeta deportiva)
+    }
+
     /// <summary>
     /// Árbitro y gestor central del polígono de tiro deportivo olímpico.
-    /// Administra las series de 10 disparos, tiempos, cambios de distancia (10m, 25m, 50m),
-    /// cálculo de medallas olímpicas y persistencia en disco.
+    /// Administra las 3 disciplinas deportivas (Rifle a distancia, Pistola en pared dinámica, y Tiro al plato),
+    /// el equipamiento activo en mano, tiempos, medallas y persistencia en disco.
     /// </summary>
     public class ShootingRangeManager : MonoBehaviour
     {
@@ -20,8 +27,18 @@ namespace Tiro.Core
 
         [Header("Configuration")]
         [SerializeField] private ShootingRangeConfigSO config;
+
+        [Header("Disciplines & Equipment")]
+        [SerializeField] private ShootingDiscipline activeDiscipline = ShootingDiscipline.OlympicRifleDistance;
+        [SerializeField] private OlympicRifle rifle;
         [SerializeField] private OlympicPistol pistol;
+        [SerializeField] private OlympicShotgun shotgun;
+
+        [Header("Target Systems")]
+        [SerializeField] private GameObject distanceTargetsRoot;
         [SerializeField] private List<TargetBoard> targets = new List<TargetBoard>();
+        [SerializeField] private DynamicWallTargetGallery wallGallery;
+        [SerializeField] private ClayPigeonLauncher clayLauncher;
 
         [Header("Runtime State")]
         [SerializeField] private int currentSeriesIndex = 1;
@@ -34,6 +51,7 @@ namespace Tiro.Core
 
         private ShootingSaveData currentSaveData;
 
+        public ShootingDiscipline ActiveDiscipline => activeDiscipline;
         public int CurrentSeriesIndex => currentSeriesIndex;
         public int ShotsFiredInSeries => shotsFiredInSeries;
         public int CurrentSeriesScore => currentSeriesScore;
@@ -43,6 +61,7 @@ namespace Tiro.Core
         public ShootingSaveData SaveData => currentSaveData;
         public ShootingRangeConfigSO Config => config;
 
+        public event Action<ShootingDiscipline> OnDisciplineChanged;
         public event Action<int, int, int> OnScoreUpdated; // (currentScore, shotsFired, maxShots)
         public event Action<int, bool, Vector3> OnShotLanded; // (score, isBullseye, hitPoint)
         public event Action<string, int, string> OnSeriesFinished; // (message, finalScore, medal)
@@ -71,28 +90,53 @@ namespace Tiro.Core
 
             foreach (var t in targets)
             {
-                if (t != null)
-                {
-                    t.OnHitScored += HandleTargetHit;
-                }
+                if (t != null) t.OnHitScored += HandleTargetHit;
             }
 
-            if (pistol == null)
+            // Auto-detectar armas
+            if (rifle == null) rifle = FindAnyObjectByType<OlympicRifle>();
+            if (pistol == null) pistol = FindAnyObjectByType<OlympicPistol>();
+            if (shotgun == null) shotgun = FindAnyObjectByType<OlympicShotgun>();
+
+            // Auto-detectar dianas dinámicas
+            if (wallGallery == null) wallGallery = FindAnyObjectByType<DynamicWallTargetGallery>();
+            if (clayLauncher == null) clayLauncher = FindAnyObjectByType<ClayPigeonLauncher>();
+
+            // Conectar eventos de dianas dinámicas
+            if (wallGallery != null)
             {
-                pistol = FindAnyObjectByType<OlympicPistol>();
+                wallGallery.OnTargetHit += HandleWallTargetHit;
+                wallGallery.OnRoundFinished += HandleWallRoundFinished;
+                wallGallery.OnTimerTick += (sec) => OnTimerUpdated?.Invoke(sec);
             }
 
-            StartNewSeries(0);
+            if (clayLauncher != null)
+            {
+                clayLauncher.OnClayScored += HandleClayScored;
+                clayLauncher.OnClayRoundFinished += HandleClayRoundFinished;
+            }
+
+            // Iniciar en la disciplina inicial
+            SelectDiscipline(activeDiscipline);
         }
 
         private void OnDestroy()
         {
             foreach (var t in targets)
             {
-                if (t != null)
-                {
-                    t.OnHitScored -= HandleTargetHit;
-                }
+                if (t != null) t.OnHitScored -= HandleTargetHit;
+            }
+
+            if (wallGallery != null)
+            {
+                wallGallery.OnTargetHit -= HandleWallTargetHit;
+                wallGallery.OnRoundFinished -= HandleWallRoundFinished;
+            }
+
+            if (clayLauncher != null)
+            {
+                clayLauncher.OnClayScored -= HandleClayScored;
+                clayLauncher.OnClayRoundFinished -= HandleClayRoundFinished;
             }
         }
 
@@ -100,24 +144,93 @@ namespace Tiro.Core
         {
             if (!seriesActive) return;
 
-            float timeLimit = config != null ? config.timeLimitSeconds : 90f;
-            if (timeLimit > 0f)
+            // Para la disciplina de rifle a distancia manejamos el temporizador aquí
+            if (activeDiscipline == ShootingDiscipline.OlympicRifleDistance)
             {
-                timeRemaining -= Time.deltaTime;
-                OnTimerUpdated?.Invoke(Mathf.Max(0f, timeRemaining));
-
-                if (timeRemaining <= 0f)
+                float timeLimit = config != null ? config.timeLimitSeconds : 90f;
+                if (timeLimit > 0f)
                 {
-                    CompleteSeries(timeExpired: true);
+                    timeRemaining -= Time.deltaTime;
+                    OnTimerUpdated?.Invoke(Mathf.Max(0f, timeRemaining));
+
+                    if (timeRemaining <= 0f)
+                    {
+                        CompleteSeries(timeExpired: true);
+                    }
                 }
             }
         }
 
-        public void SelectTargetDistance(int index)
+        /// <summary>
+        /// Cambia la disciplina activa de tiro (Rifle, Pistola en pared, o Tiro al plato).
+        /// </summary>
+        public void SelectDiscipline(ShootingDiscipline discipline)
         {
-            if (index < 0 || index >= targets.Count) return;
-            currentTargetIndex = index;
-            StartNewSeries(currentTargetIndex);
+            activeDiscipline = discipline;
+
+            // 1. Activar arma correspondiente y desactivar las otras
+            if (rifle != null) rifle.gameObject.SetActive(discipline == ShootingDiscipline.OlympicRifleDistance);
+            if (pistol != null) pistol.gameObject.SetActive(discipline == ShootingDiscipline.DynamicPistolWall);
+            if (shotgun != null) shotgun.gameObject.SetActive(discipline == ShootingDiscipline.ClayPigeonShotgun);
+
+            // Re-vincular arma activa a la mano del jugador
+            if (discipline == ShootingDiscipline.OlympicRifleDistance && rifle != null) rifle.BindToRightHand();
+            if (discipline == ShootingDiscipline.DynamicPistolWall && pistol != null) pistol.BindToRightHand();
+            if (discipline == ShootingDiscipline.ClayPigeonShotgun && shotgun != null) shotgun.BindToRightHand();
+
+            // 2. Activar/Desactivar sistemas de dianas correspondientes
+            if (distanceTargetsRoot != null)
+            {
+                distanceTargetsRoot.SetActive(discipline == ShootingDiscipline.OlympicRifleDistance);
+            }
+
+            if (wallGallery != null)
+            {
+                wallGallery.gameObject.SetActive(discipline == ShootingDiscipline.DynamicPistolWall);
+                if (discipline != ShootingDiscipline.DynamicPistolWall) wallGallery.StopGalleryRound();
+            }
+
+            if (clayLauncher != null)
+            {
+                clayLauncher.gameObject.SetActive(discipline == ShootingDiscipline.ClayPigeonShotgun);
+                if (discipline != ShootingDiscipline.ClayPigeonShotgun) clayLauncher.StopClayRound();
+            }
+
+            // 3. Iniciar serie/ronda en la nueva disciplina
+            StartNewDisciplineRound();
+
+            OnDisciplineChanged?.Invoke(activeDiscipline);
+        }
+
+        public void StartNewDisciplineRound()
+        {
+            currentSeriesScore = 0;
+            shotsFiredInSeries = 0;
+            bullseyesInSeries = 0;
+            seriesActive = true;
+
+            switch (activeDiscipline)
+            {
+                case ShootingDiscipline.OlympicRifleDistance:
+                    StartNewSeries(currentTargetIndex);
+                    break;
+
+                case ShootingDiscipline.DynamicPistolWall:
+                    if (pistol != null) pistol.TryReload();
+                    timeRemaining = 60f;
+                    OnScoreUpdated?.Invoke(0, 0, 60);
+                    OnSeriesStarted?.Invoke(currentSeriesIndex, 8f);
+                    if (wallGallery != null) wallGallery.StartGalleryRound();
+                    break;
+
+                case ShootingDiscipline.ClayPigeonShotgun:
+                    if (shotgun != null) shotgun.TryReload();
+                    timeRemaining = 45f;
+                    OnScoreUpdated?.Invoke(0, 0, 10);
+                    OnSeriesStarted?.Invoke(currentSeriesIndex, 20f);
+                    if (clayLauncher != null) clayLauncher.StartClayRound();
+                    break;
+            }
         }
 
         public void StartNewSeries(int targetIdx)
@@ -129,17 +242,12 @@ namespace Tiro.Core
             timeRemaining = config != null ? config.timeLimitSeconds : 90f;
             seriesActive = true;
 
-            // Resetear dianas
             foreach (var t in targets)
             {
                 if (t != null) t.ResetTarget();
             }
 
-            // Recargar pistola
-            if (pistol != null)
-            {
-                pistol.TryReload();
-            }
+            if (rifle != null) rifle.TryReload();
 
             float dist = targets.Count > currentTargetIndex && targets[currentTargetIndex] != null
                 ? targets[currentTargetIndex].DistanceMeters
@@ -152,13 +260,12 @@ namespace Tiro.Core
 
         private void HandleTargetHit(TargetBoard target, int score, bool isBullseye, Vector3 hitPoint)
         {
-            if (!seriesActive) return;
+            if (!seriesActive || activeDiscipline != ShootingDiscipline.OlympicRifleDistance) return;
 
             shotsFiredInSeries++;
             currentSeriesScore += score;
             if (isBullseye) bullseyesInSeries++;
 
-            // Integración con ScoreManager general del proyecto
             if (ScoreManager.Instance != null && score > 0)
             {
                 ScoreManager.Instance.AddPoints(score * 10);
@@ -168,11 +275,56 @@ namespace Tiro.Core
             OnScoreUpdated?.Invoke(currentSeriesScore, shotsFiredInSeries, maxShots);
             OnShotLanded?.Invoke(score, isBullseye, hitPoint);
 
-            // Comprobar si concluyó la serie reglamentaria
             if (shotsFiredInSeries >= maxShots)
             {
                 CompleteSeries(timeExpired: false);
             }
+        }
+
+        private void HandleWallTargetHit(int score, bool isBullseye, Vector3 hitPos)
+        {
+            if (!seriesActive || activeDiscipline != ShootingDiscipline.DynamicPistolWall) return;
+
+            shotsFiredInSeries++;
+            currentSeriesScore += score;
+            if (isBullseye) bullseyesInSeries++;
+
+            if (ScoreManager.Instance != null && score > 0)
+            {
+                ScoreManager.Instance.AddPoints(score * 10);
+            }
+
+            OnScoreUpdated?.Invoke(currentSeriesScore, shotsFiredInSeries, 60);
+            OnShotLanded?.Invoke(score, isBullseye, hitPos);
+        }
+
+        private void HandleWallRoundFinished(int finalScore, int hits, int total)
+        {
+            if (activeDiscipline != ShootingDiscipline.DynamicPistolWall) return;
+            CompleteSeries(timeExpired: true);
+        }
+
+        private void HandleClayScored(int points, Vector3 hitPoint)
+        {
+            if (!seriesActive || activeDiscipline != ShootingDiscipline.ClayPigeonShotgun) return;
+
+            shotsFiredInSeries++;
+            currentSeriesScore += points;
+            bullseyesInSeries++;
+
+            if (ScoreManager.Instance != null && points > 0)
+            {
+                ScoreManager.Instance.AddPoints(points * 10);
+            }
+
+            OnScoreUpdated?.Invoke(currentSeriesScore, shotsFiredInSeries, 10);
+            OnShotLanded?.Invoke(points, true, hitPoint);
+        }
+
+        private void HandleClayRoundFinished(int hits, int total)
+        {
+            if (activeDiscipline != ShootingDiscipline.ClayPigeonShotgun) return;
+            CompleteSeries(timeExpired: false);
         }
 
         private void CompleteSeries(bool timeExpired)
@@ -212,29 +364,29 @@ namespace Tiro.Core
                 currentSaveData.highestScore = currentSeriesScore;
             }
 
-            float currentAccuracy = shotsFiredInSeries > 0 ? ((float)currentSeriesScore / (shotsFiredInSeries * 10f)) * 100f : 0f;
-            if (currentAccuracy > currentSaveData.bestAccuracyPercentage)
+            switch (activeDiscipline)
             {
-                currentSaveData.bestAccuracyPercentage = currentAccuracy;
+                case ShootingDiscipline.OlympicRifleDistance:
+                    if (currentSeriesScore > currentSaveData.rifleHighScore) currentSaveData.rifleHighScore = currentSeriesScore;
+                    break;
+                case ShootingDiscipline.DynamicPistolWall:
+                    if (currentSeriesScore > currentSaveData.pistolHighScore) currentSaveData.pistolHighScore = currentSeriesScore;
+                    break;
+                case ShootingDiscipline.ClayPigeonShotgun:
+                    if (currentSeriesScore > currentSaveData.clayHighScore) currentSaveData.clayHighScore = currentSeriesScore;
+                    break;
             }
 
             ShootingSaveSystem.Save(currentSaveData);
 
+            string disciplineName = activeDiscipline == ShootingDiscipline.OlympicRifleDistance ? "Rifle de Precisión"
+                : (activeDiscipline == ShootingDiscipline.DynamicPistolWall ? "Pistola Rápida" : "Tiro al Plato");
+
             string msg = timeExpired
-                ? $"¡Tiempo Agotado! Serie terminada con {currentSeriesScore} pts."
-                : $"¡Serie Olímpica Completada! Puntuación final: {currentSeriesScore} pts.";
+                ? $"¡Tiempo Agotado en {disciplineName}! Puntuación: {currentSeriesScore} pts."
+                : $"¡Ronda de {disciplineName} Completada! Puntuación: {currentSeriesScore} pts.";
 
             OnSeriesFinished?.Invoke(msg, currentSeriesScore, medal);
-
-            // Reiniciar siguiente serie tras 4 segundos de celebración
-            StartCoroutine(AutoRestartNextSeriesRoutine());
-        }
-
-        private IEnumerator AutoRestartNextSeriesRoutine()
-        {
-            yield return new WaitForSeconds(4.5f);
-            currentSeriesIndex++;
-            StartNewSeries(currentTargetIndex);
         }
     }
 }
