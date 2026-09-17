@@ -170,6 +170,17 @@ namespace Esgrima.Core
             EsgrimaSaveSystem.Save(currentSaveData);
 
             OnMatchEnded?.Invoke(playerWon);
+
+            // Reinicio automático para que el jugador pueda seguir jugando duelos continuos
+            StartCoroutine(AutoRestartMatchRoutine());
+        }
+
+        private IEnumerator AutoRestartMatchRoutine()
+        {
+            yield return new WaitForSeconds(1.5f);
+            OnCombatBanner?.Invoke("Preparando siguiente duelo...");
+            yield return new WaitForSeconds(2.0f);
+            RestartFullMatch();
         }
 
         /// <summary>
@@ -189,6 +200,12 @@ namespace Esgrima.Core
                 if (aiScore >= targetScore)
                 {
                     EndMatch(false);
+                }
+                else
+                {
+                    currentRound++;
+                    float delay = matchConfig != null ? matchConfig.roundResetDelay : 2.0f;
+                    StartCoroutine(RestartRoundAfterDelay(delay));
                 }
             }
             else
@@ -210,6 +227,12 @@ namespace Esgrima.Core
                 if (playerScore >= targetScore)
                 {
                     EndMatch(true);
+                }
+                else
+                {
+                    currentRound++;
+                    float delay = matchConfig != null ? matchConfig.roundResetDelay : 2.0f;
+                    StartCoroutine(RestartRoundAfterDelay(delay));
                 }
             }
         }
