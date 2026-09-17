@@ -6,31 +6,30 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 namespace Esgrima.Combat
 {
     /// <summary>
-    /// Garantiza que el sable se acople firmemente en la mano del jugador
-    /// con la postura, ángulo y agarre de un sable de esgrima real,
-    /// eliminando cualquier desalineación o flotación vertical.
+    /// Fija el sable a la mano/mando de Oculus como un objeto completamente sólido (un palo),
+    /// eliminando cualquier temblor, retraso o interferencia física con el cuerpo del jugador.
     /// </summary>
     [RequireComponent(typeof(XRGrabInteractable))]
     [RequireComponent(typeof(Rigidbody))]
     public class SwordGripHandler : MonoBehaviour
     {
         [Header("Grip Alignment")]
-        [Tooltip("Punto de anclaje exacto en la empuñadura del sable.")]
-        [SerializeField] private Transform gripAttachPoint;
-
-        [Tooltip("Rotación angular en grados para orientar la hoja hacia adelante de la mano.")]
-        [SerializeField] private Vector3 gripEulerRotation = new Vector3(75f, 0f, 0f);
+        [Tooltip("Rotación angular en grados para orientar la hoja hacia adelante del puño.")]
+        [SerializeField] private Vector3 gripEulerRotation = new Vector3(70f, 0f, 0f);
 
         [Tooltip("Desplazamiento local de la empuñadura respecto a la palma del mando.")]
-        [SerializeField] private Vector3 gripLocalOffset = new Vector3(0f, -0.03f, 0.04f);
+        [SerializeField] private Vector3 gripLocalOffset = new Vector3(0f, 0f, 0.04f);
 
         private XRGrabInteractable grabInteractable;
         private Rigidbody rb;
+        private Collider swordCollider;
+        private Transform gripAttachPoint;
 
         private void Awake()
         {
             grabInteractable = GetComponent<XRGrabInteractable>();
             rb = GetComponent<Rigidbody>();
+            swordCollider = GetComponent<Collider>();
 
             SetupGripAttachPoint();
             ConfigureInteractable();
@@ -38,19 +37,16 @@ namespace Esgrima.Combat
 
         private void SetupGripAttachPoint()
         {
-            if (gripAttachPoint == null)
+            Transform existing = transform.Find("Grip_Attach_Point");
+            if (existing != null)
             {
-                Transform existing = transform.Find("Grip_Attach_Point");
-                if (existing != null)
-                {
-                    gripAttachPoint = existing;
-                }
-                else
-                {
-                    GameObject go = new GameObject("Grip_Attach_Point");
-                    go.transform.SetParent(transform, false);
-                    gripAttachPoint = go.transform;
-                }
+                gripAttachPoint = existing;
+            }
+            else
+            {
+                GameObject go = new GameObject("Grip_Attach_Point");
+                go.transform.SetParent(transform, false);
+                gripAttachPoint = go.transform;
             }
 
             gripAttachPoint.localPosition = gripLocalOffset;
@@ -61,13 +57,18 @@ namespace Esgrima.Combat
         {
             if (grabInteractable == null) return;
 
-            // Obligar al XRGrabInteractable a usar este punto de anclaje exclusivo
             grabInteractable.attachTransform = gripAttachPoint;
             grabInteractable.useDynamicAttach = false;
             grabInteractable.matchAttachPosition = true;
             grabInteractable.matchAttachRotation = true;
             grabInteractable.snapToColliderVolume = false;
-            grabInteractable.movementType = XRBaseInteractable.MovementType.VelocityTracking;
+
+            // Instantaneous para seguimiento 1:1 directo sin temblores ni retraso físico
+            grabInteractable.movementType = XRBaseInteractable.MovementType.Instantaneous;
+            grabInteractable.trackPosition = true;
+            grabInteractable.trackRotation = true;
+            grabInteractable.smoothPosition = false;
+            grabInteractable.smoothRotation = false;
             grabInteractable.throwOnDetach = false;
 
             grabInteractable.selectEntered.AddListener(OnSwordSelected);
@@ -85,7 +86,37 @@ namespace Esgrima.Combat
 
         private void OnSwordSelected(SelectEnterEventArgs args)
         {
-            // Resetear cualquier desfase que el Ray Interactor pudiera haber acumulado
+            // Bloqueo cinemático total para evitar que la física pelee con la mano
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.useGravity = false;
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+
+            // Al estar en mano, el collider pasa a Trigger:
+            // Sigue detectando golpes al rival y choques espada con espada (VRSword usa OnTriggerEnter),
+            // pero NUNCA empujará la mano ni rebotará contra el cuerpo del jugador provocando temblores.
+            if (swordCollider != null)
+            {
+                swordCollider.isTrigger = true;
+            }
+
+            // Ignorar colisiones con cualquier collider de la jerarquía del jugador
+            Collider[] allColliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
+            Transform interactorRoot = args.interactorObject != null ? args.interactorObject.transform.root : null;
+            if (interactorRoot != null && swordCollider != null)
+            {
+                foreach (var col in allColliders)
+                {
+                    if (col != swordCollider && col.transform.IsChildOf(interactorRoot))
+                    {
+                        Physics.IgnoreCollision(swordCollider, col, true);
+                    }
+                }
+            }
+
             if (args.interactorObject is XRBaseInteractor interactor)
             {
                 Transform interactorAttach = interactor.GetAttachTransform(grabInteractable);
@@ -97,15 +128,8 @@ namespace Esgrima.Combat
 
                 if (interactor is XRBaseInputInteractor inputInteractor)
                 {
-                    inputInteractor.SendHapticImpulse(0.5f, 0.1f);
+                    inputInteractor.SendHapticImpulse(0.5f, 0.08f);
                 }
-            }
-
-            if (rb != null)
-            {
-                rb.useGravity = false;
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
             }
         }
 
@@ -113,22 +137,16 @@ namespace Esgrima.Combat
         {
             if (rb != null)
             {
-                // Al soltarla, evitar que salga volando erráticamente
+                rb.isKinematic = true;
+                rb.useGravity = false;
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
-                rb.useGravity = false;
             }
-        }
 
-        /// <summary>
-        /// Permite calibrar la inclinación de la hoja en tiempo real si el usuario lo requiere.
-        /// </summary>
-        public void SetGripAngle(float pitchDegrees)
-        {
-            gripEulerRotation.x = pitchDegrees;
-            if (gripAttachPoint != null)
+            // Al soltarla, vuelve a sólido para que el rayo a distancia pueda volver a detectarla y agarrarla
+            if (swordCollider != null)
             {
-                gripAttachPoint.localRotation = Quaternion.Euler(gripEulerRotation);
+                swordCollider.isTrigger = false;
             }
         }
     }
