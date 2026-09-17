@@ -5,6 +5,7 @@ using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.InputSystem;
+using TMPro;
 using Tiro.Data;
 using Tiro.Targets;
 
@@ -29,6 +30,13 @@ namespace Tiro.Weapons
         [SerializeField] private Transform rearSight;
         [Tooltip("Pieza de la corredera que retrocede en cada disparo.")]
         [SerializeField] private Transform slideTransform;
+
+        [Header("Ammo OLED Display (Contador Digital en la Pistola)")]
+        [Tooltip("Texto digital en la cara trasera de la corredera que muestra las balas restantes.")]
+        [SerializeField] private TextMeshPro ammoCounterText;
+        [Tooltip("Barra de puntos luminosos o instrucción de recarga.")]
+        [SerializeField] private TextMeshPro ammoBarText;
+        [SerializeField] private Transform ammoDisplayRoot;
 
         [Header("FX & Feedback")]
         [SerializeField] private AudioSource audioSource;
@@ -57,6 +65,8 @@ namespace Tiro.Weapons
         private bool isReloading = false;
         private bool wasTriggerPulled = false;
         private bool wasReloadBtnPressed = false;
+        private bool gestureArmed = true;
+        private Vector3 lastHandPos;
         private Vector3 slideInitialLocalPos;
         private XRGrabInteractable grabInteractable;
         private XRBaseInputInteractor boundInteractor;
@@ -124,6 +134,10 @@ namespace Tiro.Weapons
             {
                 BindToRightHand();
             }
+
+            lastHandPos = transform.position;
+            EnsureAmmoDisplayCreated();
+            UpdateAmmoDisplay();
 
             OnAmmoChanged?.Invoke(currentAmmo, MaxAmmo);
         }
@@ -330,17 +344,45 @@ namespace Tiro.Weapons
         }
 
         /// <summary>
-        /// Recarga táctica olímpica al inclinar el cañón hacia abajo.
+        /// Recarga táctica olímpica al hacer el movimiento de la mano hacia abajo (estilo Pistol Whip):
+        /// 1) Inclinando el arma hacia abajo (> 22° respecto al horizonte, forward.y < -0.38f)
+        /// 2) O realizando un movimiento/sacudida dinámico rápido hacia abajo con la mano.
         /// </summary>
         private void CheckGestureReload()
         {
-            if (isReloading || currentAmmo >= MaxAmmo) return;
+            if (isReloading) return;
 
-            // Si el arma apunta hacia abajo (> 60° de inclinación negativa)
-            if (transform.forward.y < -0.75f)
+            // Si el arma ya tiene el cargador lleno, rearmar el gesto al volver a apuntar al frente
+            if (currentAmmo >= MaxAmmo)
             {
+                if (transform.forward.y > -0.22f)
+                {
+                    gestureArmed = true;
+                }
+                lastHandPos = transform.position;
+                return;
+            }
+
+            // Detección 1: Inclinación cómoda y ergonómica hacia abajo
+            bool isPointingDown = transform.forward.y < -0.38f;
+
+            // Detección 2: Movimiento rápido hacia abajo (downward flick de la muñeca/mano)
+            float dt = Mathf.Max(Time.deltaTime, 0.0001f);
+            float downVelocity = (lastHandPos.y - transform.position.y) / dt;
+            bool isFlickingDown = (downVelocity > 0.75f) && (transform.forward.y < -0.12f);
+
+            if ((isPointingDown || isFlickingDown) && gestureArmed)
+            {
+                gestureArmed = false;
                 TryReload();
             }
+            else if (transform.forward.y > -0.22f)
+            {
+                // Se rearma automáticamente cuando el jugador regresa el arma a posición de encare
+                gestureArmed = true;
+            }
+
+            lastHandPos = transform.position;
         }
 
         private void OnGrabActivated(ActivateEventArgs args)
@@ -363,6 +405,7 @@ namespace Tiro.Weapons
 
             lastFireTimestamp = Time.time;
             currentAmmo--;
+            UpdateAmmoDisplay();
             OnAmmoChanged?.Invoke(currentAmmo, MaxAmmo);
 
             ExecuteShot();
@@ -486,6 +529,7 @@ namespace Tiro.Weapons
         private IEnumerator ReloadRoutine()
         {
             isReloading = true;
+            UpdateAmmoDisplay();
 
             if (pistolData != null && pistolData.reloadSound != null && audioSource != null)
             {
@@ -495,10 +539,11 @@ namespace Tiro.Weapons
             // Breve vibración de recarga
             SendHaptic(0.4f, 0.08f);
 
-            yield return new WaitForSeconds(0.65f);
+            yield return new WaitForSeconds(0.55f);
 
             currentAmmo = MaxAmmo;
             isReloading = false;
+            UpdateAmmoDisplay();
             OnAmmoChanged?.Invoke(currentAmmo, MaxAmmo);
             OnPistolReloaded?.Invoke();
 
@@ -550,6 +595,139 @@ namespace Tiro.Weapons
                     it.SendHapticImpulse(intensity, duration);
                 }
             }
+        }
+
+        /// <summary>
+        /// Crea o valida la pantalla OLED diegética en la placa trasera de la corredera.
+        /// </summary>
+        private void EnsureAmmoDisplayCreated()
+        {
+            if (ammoCounterText != null) return;
+
+            Transform parentT = slideTransform != null ? slideTransform : transform;
+
+            GameObject oledObj = new GameObject("Ammo_OLED_Display");
+            oledObj.transform.SetParent(parentT, false);
+
+            if (slideTransform != null)
+            {
+                oledObj.transform.localPosition = new Vector3(0f, 0.05f, -0.505f);
+                oledObj.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // Mirando al tirador
+
+                Vector3 invScale = new Vector3(1f / slideTransform.localScale.x, 1f / slideTransform.localScale.y, 1f / slideTransform.localScale.z);
+                oledObj.transform.localScale = Vector3.Scale(invScale, new Vector3(0.024f, 0.022f, 0.004f));
+            }
+            else
+            {
+                oledObj.transform.localPosition = new Vector3(0f, 0.045f, -0.075f);
+                oledObj.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                oledObj.transform.localScale = new Vector3(0.024f, 0.022f, 0.004f);
+            }
+
+            ammoDisplayRoot = oledObj.transform;
+
+            // Marco / Fondo OLED oscuro
+            GameObject bg = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            bg.name = "OLED_Bezel";
+            bg.transform.SetParent(oledObj.transform, false);
+            bg.transform.localPosition = Vector3.zero;
+            bg.transform.localRotation = Quaternion.identity;
+            bg.transform.localScale = Vector3.one;
+            var col = bg.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            var r = bg.GetComponent<Renderer>();
+            if (r != null)
+            {
+                r.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                r.material.color = new Color(0.05f, 0.06f, 0.08f, 1f);
+            }
+
+            // Texto numérico principal de munición (ej: "10")
+            GameObject numObj = new GameObject("Ammo_Number_Text");
+            numObj.transform.SetParent(oledObj.transform, false);
+            numObj.transform.localPosition = new Vector3(0f, 0.12f, -0.52f);
+            numObj.transform.localRotation = Quaternion.identity;
+            numObj.transform.localScale = Vector3.one * 0.22f;
+
+            ammoCounterText = numObj.AddComponent<TextMeshPro>();
+            ammoCounterText.alignment = TextAlignmentOptions.Center;
+            ammoCounterText.fontSize = 7.5f;
+            ammoCounterText.fontStyle = FontStyles.Bold;
+            ammoCounterText.color = new Color(0f, 1f, 0.75f, 1f);
+            ammoCounterText.text = currentAmmo.ToString();
+
+            // Texto secundario / barra de puntos o instrucción
+            GameObject barObj = new GameObject("Ammo_Bar_Text");
+            barObj.transform.SetParent(oledObj.transform, false);
+            barObj.transform.localPosition = new Vector3(0f, -0.32f, -0.52f);
+            barObj.transform.localRotation = Quaternion.identity;
+            barObj.transform.localScale = Vector3.one * 0.22f;
+
+            ammoBarText = barObj.AddComponent<TextMeshPro>();
+            ammoBarText.alignment = TextAlignmentOptions.Center;
+            ammoBarText.fontSize = 2.4f;
+            ammoBarText.fontStyle = FontStyles.Bold;
+            ammoBarText.color = new Color(0f, 1f, 0.75f, 1f);
+            ammoBarText.text = GetBulletDots(currentAmmo, MaxAmmo);
+        }
+
+        private void UpdateAmmoDisplay()
+        {
+            if (ammoCounterText == null) return;
+
+            if (isReloading)
+            {
+                ammoCounterText.text = "--";
+                ammoCounterText.color = new Color(1f, 0.85f, 0.1f);
+                if (ammoBarText != null)
+                {
+                    ammoBarText.text = "RECARGANDO...";
+                    ammoBarText.color = new Color(1f, 0.85f, 0.1f);
+                }
+                return;
+            }
+
+            if (currentAmmo > 3)
+            {
+                ammoCounterText.text = currentAmmo.ToString();
+                ammoCounterText.color = new Color(0f, 1f, 0.75f); // Cyan menta cyber
+                if (ammoBarText != null)
+                {
+                    ammoBarText.text = GetBulletDots(currentAmmo, MaxAmmo);
+                    ammoBarText.color = new Color(0f, 0.9f, 0.6f);
+                }
+            }
+            else if (currentAmmo > 0)
+            {
+                ammoCounterText.text = currentAmmo.ToString();
+                ammoCounterText.color = new Color(1f, 0.7f, 0f); // Ámbar aviso
+                if (ammoBarText != null)
+                {
+                    ammoBarText.text = GetBulletDots(currentAmmo, MaxAmmo);
+                    ammoBarText.color = new Color(1f, 0.7f, 0f);
+                }
+            }
+            else
+            {
+                ammoCounterText.text = "0";
+                ammoCounterText.color = new Color(1f, 0.2f, 0.2f); // Rojo alerta
+                if (ammoBarText != null)
+                {
+                    ammoBarText.text = "▼ BAJA EL ARMA ▼";
+                    ammoBarText.color = new Color(1f, 0.25f, 0.25f);
+                }
+            }
+        }
+
+        private string GetBulletDots(int current, int max)
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            for (int i = 0; i < max; i++)
+            {
+                if (i < current) sb.Append("●");
+                else sb.Append("○");
+            }
+            return sb.ToString();
         }
     }
 }

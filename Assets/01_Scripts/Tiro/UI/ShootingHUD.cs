@@ -62,17 +62,21 @@ namespace Tiro.UI
             }
         }
 
+        private int cachedShotsFired = 0;
+        private int cachedMaxShots = 10;
+        private int cachedAmmo = 10;
+
         private void HandleScoreUpdated(int currentScore, int shotsFired, int maxShots)
         {
+            cachedShotsFired = shotsFired;
+            cachedMaxShots = maxShots;
+
             if (scoreText != null)
             {
                 scoreText.text = $"Puntos: <color=#FFD700>{currentScore}</color> / {maxShots * 10}";
             }
 
-            if (shotsText != null)
-            {
-                shotsText.text = $"Tiros: {shotsFired} / {maxShots}";
-            }
+            UpdateShotsAndAmmoDisplay();
         }
 
         private void HandleShotLanded(int score, bool isBullseye, Vector3 hitPoint)
@@ -138,7 +142,28 @@ namespace Tiro.UI
 
         private void HandleAmmoChanged(int current, int max)
         {
-            // Opcional: feedback de cargador en el HUD
+            cachedAmmo = current;
+            UpdateShotsAndAmmoDisplay();
+
+            if (current == 0 && feedbackBannerText != null)
+            {
+                feedbackBannerText.text = "¡Cargador vacío! Inclina o sacude la mano hacia abajo para recargar";
+                feedbackBannerText.color = new Color(1f, 0.35f, 0.35f);
+            }
+            else if (current == max && feedbackBannerText != null && feedbackBannerText.text.Contains("Cargador vacío"))
+            {
+                feedbackBannerText.text = "¡Cargador recargado! Listo para disparar";
+                feedbackBannerText.color = new Color(0f, 1f, 0.75f);
+            }
+        }
+
+        private void UpdateShotsAndAmmoDisplay()
+        {
+            if (shotsText != null)
+            {
+                string ammoColor = cachedAmmo > 3 ? "#00FFAA" : (cachedAmmo > 0 ? "#FFB300" : "#FF3333");
+                shotsText.text = $"Tiros: {cachedShotsFired}/{cachedMaxShots}  |  Cargador: <color={ammoColor}>{cachedAmmo}</color>";
+            }
         }
 
         private void UpdateRecordDisplay()
