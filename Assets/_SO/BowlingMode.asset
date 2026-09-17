@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinigameData
   sportName: Bolos
   description: 
-  icon: {fileID: 21300000, guid: 9574c22a8f725ad46ade82a310c43b40, type: 3}
+  icon: {fileID: 21300000, guid: 8ceb6117a865f9a4e8df1cb3f67f8e44, type: 3}
   sceneName: BowlingScene
   timeLimitSeconds: 60
   targetScoreToWin: 0
