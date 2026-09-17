@@ -20,7 +20,7 @@ namespace Tiro.Editor
         private const string PauseMenuPrefabGuid = "fb0fc33f728c20c4da4e60734a5f1a43";
         private const string PistolPrefabPath = "Assets/03_Resources/Prefabs/Tiro/Olympic_Pistol_VR.prefab";
 
-        private const string SceneRebuiltKey = "ShootingScene_VR_Rebuilt_v4";
+        private const string SceneRebuiltKey = "ShootingScene_VR_Rebuilt_v5";
 
         [InitializeOnLoadMethod]
         private static void AutoBuildIfMissing()
@@ -520,7 +520,6 @@ namespace Tiro.Editor
             so.FindProperty("frontSight").objectReferenceValue = frontSightAnchor.transform;
             so.FindProperty("rearSight").objectReferenceValue = rearSightAnchor.transform;
             so.FindProperty("slideTransform").objectReferenceValue = slide.transform;
-            so.FindProperty("ammoText").objectReferenceValue = ammoTmp;
             so.FindProperty("ammoCounterText").objectReferenceValue = ammoTmp;
             so.FindProperty("audioSource").objectReferenceValue = audioSource;
             so.FindProperty("bindToRightControllerOnStart").boolValue = true;
