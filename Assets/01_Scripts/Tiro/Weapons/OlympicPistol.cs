@@ -37,10 +37,16 @@ namespace Tiro.Weapons
         [SerializeField] private GameObject bulletHolePrefab;
 
         [Header("Direct VR Hand Binding")]
-        [Tooltip("Si es true, la pistola se vincula automáticamente al mando derecho sin necesidad de recogerla del suelo.")]
+        [Tooltip("Si es true, la pistola se vincula automáticamente al mando derecho. Si lo desmarcas (false), puedes moverla y emparentarla 100% a mano.")]
         [SerializeField] private bool bindToRightControllerOnStart = true;
+        [Tooltip("Mando o mano específica. Si lo dejas vacío, busca automáticamente el Right Controller.")]
+        [SerializeField] private Transform manualHandTarget;
+        [Tooltip("Offset de posición local respecto al mando/mano (para moverla adelante/atrás, arriba/abajo).")]
         [SerializeField] private Vector3 gripOffset = new Vector3(0f, -0.025f, 0.08f);
-        [SerializeField] private Vector3 gripEulerAngles = Vector3.zero; // Apuntar 100% al frente (+Z)
+        [Tooltip("Rotación Euler local respecto al mando/mano (0,0,0 apunta recto al frente).")]
+        [SerializeField] private Vector3 gripEulerAngles = Vector3.zero;
+        [Tooltip("Permite mover los valores de Offset y Rotación en el Inspector durante Play Mode y ver el resultado en tiempo real.")]
+        [SerializeField] private bool liveCalibrationInPlayMode = true;
 
         [Header("Input Actions (Opcional - se complementa con lectura directa de hardware XR)")]
         [SerializeField] private InputActionProperty fireAction;
@@ -124,10 +130,19 @@ namespace Tiro.Weapons
 
         private void LateUpdate()
         {
-            // Garantizar que la pistola permanezca vinculada al mando derecho
-            if (bindToRightControllerOnStart && (boundHandTarget == null || transform.parent != boundHandTarget))
+            if (bindToRightControllerOnStart)
             {
-                BindToRightHand();
+                Transform target = manualHandTarget != null ? manualHandTarget : boundHandTarget;
+                if (target == null || transform.parent != target)
+                {
+                    BindToRightHand();
+                }
+                else if (liveCalibrationInPlayMode)
+                {
+                    // Permite ajustar los valores numéricos de gripOffset y gripEulerAngles en tiempo real en el Inspector durante el juego
+                    transform.localPosition = gripOffset;
+                    transform.localRotation = Quaternion.Euler(gripEulerAngles);
+                }
             }
         }
 
@@ -144,10 +159,7 @@ namespace Tiro.Weapons
         /// </summary>
         public void BindToRightHand()
         {
-            if (boundHandTarget == null)
-            {
-                boundHandTarget = FindRightHandTransform();
-            }
+            boundHandTarget = manualHandTarget != null ? manualHandTarget : FindRightHandTransform();
 
             if (boundHandTarget != null)
             {
