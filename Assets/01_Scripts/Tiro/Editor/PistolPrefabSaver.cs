@@ -10,17 +10,6 @@ namespace Tiro.Editor
         private const string PrefabDirectory = "Assets/03_Resources/Prefabs/Tiro";
         private const string PrefabPath = "Assets/03_Resources/Prefabs/Tiro/Olympic_Pistol_VR.prefab";
 
-        [InitializeOnLoadMethod]
-        private static void AutoSavePistolPrefab()
-        {
-            EditorApplication.delayCall += () =>
-            {
-                if (!File.Exists(PrefabPath))
-                {
-                    SavePistolPrefab();
-                }
-            };
-        }
 
         [MenuItem("VR Sports/Tiro/Save Pistol As Prefab")]
         public static void SavePistolPrefab()

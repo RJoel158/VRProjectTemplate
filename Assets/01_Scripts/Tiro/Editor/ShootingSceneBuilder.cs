@@ -20,36 +20,7 @@ namespace Tiro.Editor
         private const string PauseMenuPrefabGuid = "fb0fc33f728c20c4da4e60734a5f1a43";
         private const string PistolPrefabPath = "Assets/03_Resources/Prefabs/Tiro/Olympic_Pistol_VR.prefab";
 
-        private const string SceneRebuiltKey = "ShootingScene_VR_Rebuilt_v5";
 
-        [InitializeOnLoadMethod]
-        private static void AutoBuildIfMissing()
-        {
-            EditorApplication.delayCall += () =>
-            {
-                if (EditorApplication.isPlayingOrWillChangePlaymode) return;
-
-                if (!SessionState.GetBool(SceneRebuiltKey, false))
-                {
-                    SessionState.SetBool(SceneRebuiltKey, true);
-                    BuildScene();
-                }
-                FixSunReference();
-            };
-
-            EditorApplication.playModeStateChanged += (state) =>
-            {
-                if (state == PlayModeStateChange.EnteredEditMode)
-                {
-                    if (!SessionState.GetBool(SceneRebuiltKey, false))
-                    {
-                        SessionState.SetBool(SceneRebuiltKey, true);
-                        BuildScene();
-                    }
-                    FixSunReference();
-                }
-            };
-        }
 
         [MenuItem("VR Sports/Tiro/Fix Sun Light Reference")]
         public static void FixSunReference()
