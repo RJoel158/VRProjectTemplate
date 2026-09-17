@@ -182,13 +182,17 @@ namespace Tiro.Targets
         private void PlayHitSound(bool isBullseye)
         {
             if (audioSource == null) audioSource = GetComponent<AudioSource>();
-            if (audioSource == null) return;
-
             AudioClip hitClip = isBullseye ?
                 (config != null && config.bullseyeHitSound != null ? config.bullseyeHitSound : Tiro.Audio.ShootingSoundFX.GetTargetHitSound(true)) :
                 (config != null && config.standardHitSound != null ? config.standardHitSound : Tiro.Audio.ShootingSoundFX.GetTargetHitSound(false));
 
-            audioSource.PlayOneShot(hitClip);
+            if (hitClip != null)
+            {
+                audioSource.spatialBlend = 0.5f;
+                audioSource.volume = 1f;
+                audioSource.PlayOneShot(hitClip);
+                if (Camera.main != null) AudioSource.PlayClipAtPoint(hitClip, Camera.main.transform.position, 0.65f);
+            }
         }
 
         private IEnumerator AnimateHitSwing()

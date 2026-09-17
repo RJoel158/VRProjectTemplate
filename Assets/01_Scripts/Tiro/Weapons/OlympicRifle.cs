@@ -57,11 +57,15 @@ namespace Tiro.Weapons
             if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
             audioSource.spatialBlend = 0f;
+            audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+            audioSource.minDistance = 100f;
+            audioSource.maxDistance = 1000f;
             audioSource.volume = 1f;
             audioSource.playOnAwake = false;
             audioSource.mute = false;
 
             currentAmmo = maxAmmo;
+            SetupM1GarandSights();
         }
 
         private void OnEnable()
@@ -72,6 +76,7 @@ namespace Tiro.Weapons
         private void Start()
         {
             BindToRightHand();
+            SetupM1GarandSights();
             lastHandPos = transform.position;
             UpdateDisplay();
             OnAmmoChanged?.Invoke(currentAmmo, maxAmmo);
@@ -258,11 +263,8 @@ namespace Tiro.Weapons
 
             if (currentAmmo <= 0)
             {
-                if (audioSource != null)
-                {
-                    AudioClip drySound = (rifleData != null && rifleData.dryFireSound != null) ? rifleData.dryFireSound : Tiro.Audio.ShootingSoundFX.GetDryFireSound();
-                    audioSource.PlayOneShot(drySound);
-                }
+                AudioClip drySound = (rifleData != null && rifleData.dryFireSound != null) ? rifleData.dryFireSound : Tiro.Audio.ShootingSoundFX.GetDryFireSound();
+                PlayWeaponSound(drySound, 0.85f);
                 return;
             }
 
@@ -324,11 +326,9 @@ namespace Tiro.Weapons
             StartCoroutine(RenderTracer(origin, hitPoint));
 
             if (muzzleFlash != null) muzzleFlash.Play();
-            if (audioSource != null)
-            {
-                AudioClip shotSound = (rifleData != null && rifleData.gunshotSound != null) ? rifleData.gunshotSound : Tiro.Audio.ShootingSoundFX.GetGunshotRifle();
-                audioSource.PlayOneShot(shotSound);
-            }
+
+            AudioClip shotSound = (rifleData != null && rifleData.gunshotSound != null) ? rifleData.gunshotSound : Tiro.Audio.ShootingSoundFX.GetGunshotRifle();
+            PlayWeaponSound(shotSound, 1f);
 
             TriggerHaptics();
             OnRifleFired?.Invoke();
@@ -360,11 +360,8 @@ namespace Tiro.Weapons
             isReloading = true;
             UpdateDisplay();
 
-            if (audioSource != null)
-            {
-                AudioClip reloadClip = (rifleData != null && rifleData.reloadSound != null) ? rifleData.reloadSound : Tiro.Audio.ShootingSoundFX.GetReloadSound();
-                audioSource.PlayOneShot(reloadClip);
-            }
+            AudioClip reloadClip = (rifleData != null && rifleData.reloadSound != null) ? rifleData.reloadSound : Tiro.Audio.ShootingSoundFX.GetReloadSound();
+            PlayWeaponSound(reloadClip, 1f);
 
             yield return new WaitForSeconds(0.6f);
 
@@ -373,6 +370,264 @@ namespace Tiro.Weapons
             UpdateDisplay();
             OnAmmoChanged?.Invoke(currentAmmo, maxAmmo);
             OnRifleReloaded?.Invoke();
+        }
+
+        public void PlayWeaponSound(AudioClip clip, float volume = 1f)
+        {
+            if (clip == null) return;
+
+            if (audioSource != null)
+            {
+                audioSource.spatialBlend = 0f; // 2D directo a ambos oídos
+                audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+                audioSource.minDistance = 100f;
+                audioSource.maxDistance = 1000f;
+                audioSource.volume = volume;
+                audioSource.mute = false;
+                audioSource.enabled = true;
+                audioSource.PlayOneShot(clip, volume);
+            }
+
+            // Reproducción directa e infalible en la cámara/oído del jugador
+            Camera cam = Camera.main;
+            Vector3 playPos = cam != null ? cam.transform.position : transform.position;
+            AudioSource.PlayClipAtPoint(clip, playPos, volume);
+        }
+
+        /// <summary>
+        /// Configura el sistema de miras estilo M1 Garand / Ruger 10/22:
+        /// - Alza trasera (Diopter Housing): anillo ahuecado (peep sight) con orificio abierto en el centro.
+        /// - Mira delantera: poste fino ("piquito") con puntita óptica luminosa y aletas protectoras abiertas.
+        /// - Pantalla de munición: compacta en el costado del recibidor, sin interferir en la línea de mira.
+        /// </summary>
+        public void SetupM1GarandSights()
+        {
+            // 1. Alza Trasera Ahuecada (M1 Garand Peep Sight)
+            Transform diopter = null;
+            foreach (var tr in GetComponentsInChildren<Transform>(true))
+            {
+                if (tr.name == "Diopter_Housing") { diopter = tr; break; }
+            }
+
+            if (diopter != null)
+            {
+                diopter.localPosition = new Vector3(0f, 0.065f, -0.08f);
+                diopter.localRotation = Quaternion.identity;
+                diopter.localScale = Vector3.one;
+
+                MeshFilter mf = diopter.GetComponent<MeshFilter>();
+                if (mf != null)
+                {
+                    // Orificio de 11mm de diámetro (5.5mm radio) para visión totalmente nítida y despejada
+                    mf.sharedMesh = GeneratePeepApertureMesh(innerRadius: 0.0055f, outerRadius: 0.0135f, thickness: 0.0025f, segments: 28);
+                }
+
+                var col = diopter.GetComponent<Collider>();
+                if (col != null) Destroy(col);
+
+                MeshRenderer mr = diopter.GetComponent<MeshRenderer>();
+                if (mr != null && mr.sharedMaterial == null)
+                {
+                    mr.material = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.12f, 0.12f, 0.14f) };
+                }
+
+                // Vástago de sujeción al cajón
+                Transform stem = diopter.Find("Peep_Stem");
+                if (stem == null)
+                {
+                    GameObject stemObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    stemObj.name = "Peep_Stem";
+                    stemObj.transform.SetParent(diopter, false);
+                    stemObj.transform.localPosition = new Vector3(0f, -0.016f, 0f);
+                    stemObj.transform.localScale = new Vector3(0.005f, 0.022f, 0.003f);
+                    var stemCol = stemObj.GetComponent<Collider>();
+                    if (stemCol != null) Destroy(stemCol);
+                    if (mr != null) stemObj.GetComponent<Renderer>().material = mr.material;
+                }
+            }
+
+            if (rearDiopterSight != null)
+            {
+                rearDiopterSight.localPosition = new Vector3(0f, 0.065f, -0.08f);
+            }
+
+            // 2. Desactivar túnel cilíndrico opaco
+            foreach (var tr in GetComponentsInChildren<Transform>(true))
+            {
+                if (tr.name == "Front_Globe_Tunnel")
+                {
+                    tr.gameObject.SetActive(false);
+                }
+            }
+
+            // 3. Mira delantera tipo M1 Garand / Ruger 10/22 (Poste central / "piquito" con puntita luminosa)
+            Transform frontSightGroup = transform.Find("Garand_Front_Sight");
+            if (frontSightGroup == null)
+            {
+                GameObject fsgObj = new GameObject("Garand_Front_Sight");
+                fsgObj.transform.SetParent(transform, false);
+                frontSightGroup = fsgObj.transform;
+                frontSightGroup.localPosition = new Vector3(0f, 0f, 0.68f);
+
+                Material gunMat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.12f, 0.12f, 0.14f) };
+                Material tipMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(1f, 0.45f, 0.05f) }; // Naranja flúor
+
+                // Base sobre el cañón
+                GameObject baseBlock = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                baseBlock.name = "Sight_Base";
+                baseBlock.transform.SetParent(frontSightGroup, false);
+                baseBlock.transform.localPosition = new Vector3(0f, 0.042f, 0f);
+                baseBlock.transform.localScale = new Vector3(0.018f, 0.008f, 0.012f);
+                baseBlock.GetComponent<Renderer>().material = gunMat;
+                Destroy(baseBlock.GetComponent<Collider>());
+
+                // Poste central ("Piquito")
+                GameObject post = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                post.name = "Center_Post";
+                post.transform.SetParent(frontSightGroup, false);
+                post.transform.localPosition = new Vector3(0f, 0.054f, 0f);
+                post.transform.localScale = new Vector3(0.0022f, 0.018f, 0.003f);
+                post.GetComponent<Renderer>().material = gunMat;
+                Destroy(post.GetComponent<Collider>());
+
+                // Puntita brillante de puntería (Bead a y = 0.065f)
+                GameObject tipBead = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                tipBead.name = "Sight_Tip_Bead";
+                tipBead.transform.SetParent(frontSightGroup, false);
+                tipBead.transform.localPosition = new Vector3(0f, 0.0645f, 0f);
+                tipBead.transform.localScale = new Vector3(0.003f, 0.003f, 0.0035f);
+                tipBead.GetComponent<Renderer>().material = tipMat;
+                Destroy(tipBead.GetComponent<Collider>());
+
+                // Orejas protectoras abiertas M1 Garand (alas laterales)
+                GameObject leftWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                leftWing.name = "Left_Wing";
+                leftWing.transform.SetParent(frontSightGroup, false);
+                leftWing.transform.localPosition = new Vector3(-0.009f, 0.057f, 0f);
+                leftWing.transform.localScale = new Vector3(0.0018f, 0.018f, 0.010f);
+                leftWing.transform.localRotation = Quaternion.Euler(0f, 0f, -8f);
+                leftWing.GetComponent<Renderer>().material = gunMat;
+                Destroy(leftWing.GetComponent<Collider>());
+
+                GameObject rightWing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                rightWing.name = "Right_Wing";
+                rightWing.transform.SetParent(frontSightGroup, false);
+                rightWing.transform.localPosition = new Vector3(0.009f, 0.057f, 0f);
+                rightWing.transform.localScale = new Vector3(0.0018f, 0.018f, 0.010f);
+                rightWing.transform.localRotation = Quaternion.Euler(0f, 0f, 8f);
+                rightWing.GetComponent<Renderer>().material = gunMat;
+                Destroy(rightWing.GetComponent<Collider>());
+            }
+
+            if (frontSight != null)
+            {
+                frontSight.localPosition = new Vector3(0f, 0.065f, 0.68f);
+            }
+
+            // 4. Ubicar pantalla OLED lateral de munición sin obstruir miras
+            if (ammoText != null)
+            {
+                ammoText.transform.SetParent(transform, true);
+                ammoText.transform.localPosition = new Vector3(-0.024f, 0.035f, 0.05f);
+                ammoText.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+                ammoText.transform.localScale = Vector3.one;
+                ammoText.fontSize = 0.22f;
+                ammoText.alignment = TextAlignmentOptions.Center;
+            }
+        }
+
+        private static Mesh GeneratePeepApertureMesh(float innerRadius, float outerRadius, float thickness, int segments)
+        {
+            Mesh mesh = new Mesh();
+            mesh.name = "Procedural_M1Garand_PeepSight";
+
+            int vCount = segments * 4;
+            Vector3[] vertices = new Vector3[vCount];
+            Vector3[] normals = new Vector3[vCount];
+            Vector2[] uvs = new Vector2[vCount];
+
+            float halfThick = thickness * 0.5f;
+
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = (float)i / segments * Mathf.PI * 2f;
+                float cos = Mathf.Cos(angle);
+                float sin = Mathf.Sin(angle);
+
+                // Front Face (z = +halfThick)
+                vertices[i] = new Vector3(cos * outerRadius, sin * outerRadius, halfThick);
+                normals[i] = Vector3.forward;
+                uvs[i] = new Vector2((cos + 1f) * 0.5f, (sin + 1f) * 0.5f);
+
+                int ifIdx = segments + i;
+                vertices[ifIdx] = new Vector3(cos * innerRadius, sin * innerRadius, halfThick);
+                normals[ifIdx] = Vector3.forward;
+                uvs[ifIdx] = new Vector2((cos * 0.5f + 1f) * 0.5f, (sin * 0.5f + 1f) * 0.5f);
+
+                // Back Face (z = -halfThick)
+                int obIdx = 2 * segments + i;
+                vertices[obIdx] = new Vector3(cos * outerRadius, sin * outerRadius, -halfThick);
+                normals[obIdx] = Vector3.back;
+                uvs[obIdx] = new Vector2((cos + 1f) * 0.5f, (sin + 1f) * 0.5f);
+
+                int ibIdx = 3 * segments + i;
+                vertices[ibIdx] = new Vector3(cos * innerRadius, sin * innerRadius, -halfThick);
+                normals[ibIdx] = Vector3.back;
+                uvs[ibIdx] = new Vector2((cos * 0.5f + 1f) * 0.5f, (sin * 0.5f + 1f) * 0.5f);
+            }
+
+            int[] indices = new int[segments * 24];
+            int idx = 0;
+
+            for (int i = 0; i < segments; i++)
+            {
+                int next = (i + 1) % segments;
+
+                // Front quad (outer to inner)
+                indices[idx++] = i;
+                indices[idx++] = segments + i;
+                indices[idx++] = next;
+
+                indices[idx++] = next;
+                indices[idx++] = segments + i;
+                indices[idx++] = segments + next;
+
+                // Back quad (inner to outer)
+                indices[idx++] = 2 * segments + i;
+                indices[idx++] = 2 * segments + next;
+                indices[idx++] = 3 * segments + i;
+
+                indices[idx++] = 2 * segments + next;
+                indices[idx++] = 3 * segments + next;
+                indices[idx++] = 3 * segments + i;
+
+                // Outer rim
+                indices[idx++] = i;
+                indices[idx++] = next;
+                indices[idx++] = 2 * segments + i;
+
+                indices[idx++] = next;
+                indices[idx++] = 2 * segments + next;
+                indices[idx++] = 2 * segments + i;
+
+                // Inner rim (apertura interior abierta)
+                indices[idx++] = segments + i;
+                indices[idx++] = 3 * segments + i;
+                indices[idx++] = segments + next;
+
+                indices[idx++] = segments + next;
+                indices[idx++] = 3 * segments + i;
+                indices[idx++] = 3 * segments + next;
+            }
+
+            mesh.vertices = vertices;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.triangles = indices;
+            mesh.RecalculateBounds();
+            mesh.RecalculateNormals();
+
+            return mesh;
         }
 
         private void UpdateDisplay()

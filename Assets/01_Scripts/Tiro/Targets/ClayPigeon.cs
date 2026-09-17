@@ -67,8 +67,10 @@ namespace Tiro.Targets
             if (isBroken) return;
             isBroken = true;
 
-            // 1. Sonido de estallido cerámico en el aire
-            AudioSource.PlayClipAtPoint(Tiro.Audio.ShootingSoundFX.GetClayShatterSound(), hitPoint, 1f);
+            // 1. Sonido de estallido cerámico en el aire y al oído del jugador
+            AudioClip shatterClip = Tiro.Audio.ShootingSoundFX.GetClayShatterSound();
+            AudioSource.PlayClipAtPoint(shatterClip, hitPoint, 1f);
+            if (Camera.main != null) AudioSource.PlayClipAtPoint(shatterClip, Camera.main.transform.position, 0.75f);
 
             // 2. Efecto de fragmentos cerámicos
             SpawnShatterParticles(hitPoint, hitDirection);

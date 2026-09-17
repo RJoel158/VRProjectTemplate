@@ -95,29 +95,43 @@ namespace Tiro.Core
                 }
             }
 
-            // Preservar o crear el AudioListener en la cámara activa para que todos los sonidos se escuchen siempre
+            // Localizar o crear el AudioListener en la cámara activa del jugador VR
+            Camera mainCam = Camera.main;
+            if (mainCam == null)
+            {
+                var allCams = FindObjectsByType<Camera>(FindObjectsSortMode.None);
+                foreach (var c in allCams)
+                {
+                    if (c.name.Contains("Main") || c.GetComponentInParent<Unity.XR.CoreUtils.XROrigin>() != null)
+                    {
+                        mainCam = c;
+                        break;
+                    }
+                }
+                if (mainCam == null && allCams.Length > 0) mainCam = allCams[0];
+            }
+
             var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
-            if (listeners.Length == 0)
+            AudioListener keeper = null;
+
+            if (mainCam != null)
             {
-                Camera targetCam = Camera.main;
-                if (targetCam == null)
+                keeper = mainCam.GetComponent<AudioListener>();
+                if (keeper == null) keeper = mainCam.gameObject.AddComponent<AudioListener>();
+                keeper.enabled = true;
+            }
+
+            foreach (var l in listeners)
+            {
+                if (keeper != null && l != keeper)
                 {
-                    var allCams = FindObjectsByType<Camera>(FindObjectsSortMode.None);
-                    if (allCams.Length > 0) targetCam = allCams[0];
-                }
-                if (targetCam != null)
-                {
-                    targetCam.gameObject.AddComponent<AudioListener>();
+                    Destroy(l);
                 }
             }
-            else if (listeners.Length > 1)
-            {
-                // Si hay más de 1, conservar el primero y eliminar duplicados
-                for (int i = 1; i < listeners.Length; i++)
-                {
-                    Destroy(listeners[i]);
-                }
-            }
+
+            // Garantizar volumen global activo
+            AudioListener.volume = 1f;
+            AudioListener.pause = false;
         }
 
         private void Start()

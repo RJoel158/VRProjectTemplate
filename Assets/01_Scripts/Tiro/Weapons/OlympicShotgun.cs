@@ -63,11 +63,23 @@ namespace Tiro.Weapons
             if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
             audioSource.spatialBlend = 0f;
+            audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+            audioSource.minDistance = 100f;
+            audioSource.maxDistance = 1000f;
             audioSource.volume = 1f;
             audioSource.playOnAwake = false;
             audioSource.mute = false;
 
             currentShells = MaxShells;
+
+            if (ammoText != null)
+            {
+                ammoText.transform.SetParent(transform, true);
+                ammoText.transform.localPosition = new Vector3(-0.026f, 0.045f, 0.04f);
+                ammoText.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+                ammoText.transform.localScale = Vector3.one;
+                ammoText.fontSize = 0.22f;
+            }
         }
 
         private void OnEnable()
@@ -264,11 +276,8 @@ namespace Tiro.Weapons
 
             if (currentShells <= 0)
             {
-                if (audioSource != null)
-                {
-                    AudioClip drySound = (shotgunData != null && shotgunData.dryFireSound != null) ? shotgunData.dryFireSound : Tiro.Audio.ShootingSoundFX.GetDryFireSound();
-                    audioSource.PlayOneShot(drySound);
-                }
+                AudioClip drySound = (shotgunData != null && shotgunData.dryFireSound != null) ? shotgunData.dryFireSound : Tiro.Audio.ShootingSoundFX.GetDryFireSound();
+                PlayWeaponSound(drySound, 0.85f);
                 return;
             }
 
@@ -291,50 +300,48 @@ namespace Tiro.Weapons
             }
             if (baseDir == Vector3.zero) baseDir = transform.forward;
 
-            // Disparo cónico de múltiples perdigones con radio de impacto SphereCast
-            bool staticTargetHit = false;
+            float range = 100f;
+            int pelletCount = 14; // Perdigonada olímpica
+            float spreadAngle = 2.4f; // Cono de dispersión
+
             for (int i = 0; i < pelletCount; i++)
             {
-                // Dispersión cónica aleatoria
-                Vector2 randomCircle = UnityEngine.Random.insideUnitCircle * Mathf.Tan(spreadAngleDegrees * Mathf.Deg2Rad);
-                Vector3 pelletDir = (baseDir + transform.right * randomCircle.x + transform.up * randomCircle.y).normalized;
+                Vector2 circleRand = UnityEngine.Random.insideUnitCircle * Mathf.Tan(spreadAngle * Mathf.Deg2Rad);
+                Vector3 pelletDir = (baseDir + transform.right * circleRand.x + transform.up * circleRand.y).normalized;
 
-                Vector3 hitPoint = origin + pelletDir * maxRange;
+                Vector3 hitPoint = origin + pelletDir * range;
 
-                // SphereCast con radio de 14cm para emular la nube real de perdigones
-                if (Physics.SphereCast(origin, pelletHitRadius, pelletDir, out RaycastHit hit, maxRange, ~0, QueryTriggerInteraction.Collide))
+                // Spherecast fino para simular el enjambre de perdigones
+                if (Physics.SphereCast(origin, 0.045f, pelletDir, out RaycastHit hit, range, ~0, QueryTriggerInteraction.Collide))
                 {
                     hitPoint = hit.point;
 
-                    // 1. Impacto a plato volador (Clay Pigeon)
+                    // Dianas y siluetas
+                    var target = hit.collider.GetComponentInParent<TargetBoard>();
+                    if (target != null)
+                    {
+                        target.RegisterBulletHit(hit.point, hit.normal);
+                    }
+
+                    // Platos voladores (Skeet / Trap)
                     var clay = hit.collider.GetComponentInParent<ClayPigeon>();
                     if (clay != null)
                     {
                         clay.RegisterShotHit(hit.point, pelletDir);
                     }
 
-                    // 2. Impacto a diana convencional
-                    var target = hit.collider.GetComponentInParent<TargetBoard>();
-                    if (target != null && !staticTargetHit)
-                    {
-                        staticTargetHit = true;
-                        target.RegisterBulletHit(hit.point, hit.normal);
-                    }
-
-                    // 3. Impacto a galería reactiva de pared
+                    // Galería reactiva de pared
                     var wallNode = hit.collider.GetComponentInParent<DynamicTargetNode>();
-                    if (wallNode != null && !staticTargetHit)
+                    if (wallNode != null)
                     {
-                        staticTargetHit = true;
                         var gallery = wallNode.GetComponentInParent<DynamicWallTargetGallery>();
                         if (gallery != null) gallery.RegisterNodeHit(wallNode, hit.point);
                     }
 
-                    // 4. Impacto a botones del panel de menú
+                    // Botones interactivos en panel
                     var selector = hit.collider.GetComponentInParent<Tiro.UI.DisciplineSelectorPanel>();
-                    if (selector != null && !staticTargetHit)
+                    if (selector != null)
                     {
-                        staticTargetHit = true;
                         selector.HandleShotOnButton(hit.collider.name.ToLower());
                     }
                 }
@@ -346,11 +353,9 @@ namespace Tiro.Weapons
             }
 
             if (muzzleFlash != null) muzzleFlash.Play();
-            if (audioSource != null)
-            {
-                AudioClip shotSound = (shotgunData != null && shotgunData.gunshotSound != null) ? shotgunData.gunshotSound : Tiro.Audio.ShootingSoundFX.GetGunshotShotgun();
-                audioSource.PlayOneShot(shotSound);
-            }
+
+            AudioClip shotSound = (shotgunData != null && shotgunData.gunshotSound != null) ? shotgunData.gunshotSound : Tiro.Audio.ShootingSoundFX.GetGunshotShotgun();
+            PlayWeaponSound(shotSound, 1f);
 
             TriggerHeavyHaptics();
             OnShotgunFired?.Invoke();
@@ -382,11 +387,8 @@ namespace Tiro.Weapons
             isReloading = true;
             UpdateDisplay();
 
-            if (audioSource != null)
-            {
-                AudioClip reloadClip = (shotgunData != null && shotgunData.reloadSound != null) ? shotgunData.reloadSound : Tiro.Audio.ShootingSoundFX.GetReloadSound();
-                audioSource.PlayOneShot(reloadClip);
-            }
+            AudioClip reloadClip = (shotgunData != null && shotgunData.reloadSound != null) ? shotgunData.reloadSound : Tiro.Audio.ShootingSoundFX.GetReloadSound();
+            PlayWeaponSound(reloadClip, 1f);
 
             yield return new WaitForSeconds(0.6f);
 
@@ -395,6 +397,27 @@ namespace Tiro.Weapons
             UpdateDisplay();
             OnAmmoChanged?.Invoke(currentShells, MaxShells);
             OnShotgunReloaded?.Invoke();
+        }
+
+        public void PlayWeaponSound(AudioClip clip, float volume = 1f)
+        {
+            if (clip == null) return;
+
+            if (audioSource != null)
+            {
+                audioSource.spatialBlend = 0f;
+                audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+                audioSource.minDistance = 100f;
+                audioSource.maxDistance = 1000f;
+                audioSource.volume = volume;
+                audioSource.mute = false;
+                audioSource.enabled = true;
+                audioSource.PlayOneShot(clip, volume);
+            }
+
+            Camera cam = Camera.main;
+            Vector3 playPos = cam != null ? cam.transform.position : transform.position;
+            AudioSource.PlayClipAtPoint(clip, playPos, volume);
         }
 
         private void UpdateDisplay()
