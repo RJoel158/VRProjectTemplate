@@ -25,6 +25,29 @@ namespace Tiro.Editor
             {
                 BuildScene();
             }
+
+            EditorApplication.delayCall += () =>
+            {
+                FixSunReference();
+            };
+        }
+
+        [MenuItem("VR Sports/Tiro/Fix Sun Light Reference")]
+        public static void FixSunReference()
+        {
+            var lights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+            foreach (var l in lights)
+            {
+                if (l.type == LightType.Directional)
+                {
+                    RenderSettings.sun = l;
+                    var activeScene = EditorSceneManager.GetActiveScene();
+                    EditorSceneManager.MarkSceneDirty(activeScene);
+                    EditorSceneManager.SaveScene(activeScene);
+                    Debug.Log($"[ShootingSceneBuilder] ¡RenderSettings.sun asignado correctamente al componente Light '{l.name}'!");
+                    break;
+                }
+            }
         }
 
         [MenuItem("VR Sports/Tiro/Build Shooting Scene")]
@@ -137,6 +160,17 @@ namespace Tiro.Editor
                 targetsProp.GetArrayElementAtIndex(i).objectReferenceValue = targetBoards[i];
             }
             soManager.ApplyModifiedProperties();
+
+            // Asignar correctamente el sol de la escena al componente Light (evita error de casteo PPtr)
+            var sceneLights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+            foreach (var l in sceneLights)
+            {
+                if (l.type == LightType.Directional)
+                {
+                    RenderSettings.sun = l;
+                    break;
+                }
+            }
 
             // Guardar escena en disco
             EditorSceneManager.SaveScene(scene, ScenePath);
