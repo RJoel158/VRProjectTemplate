@@ -37,7 +37,7 @@ RenderSettings:
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
-  m_Sun: {fileID: 299639868}
+  m_Sun: {fileID: 299639870}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -1934,8 +1934,8 @@ MonoBehaviour:
   bulletTracerPrefab: {fileID: 0}
   bulletHolePrefab: {fileID: 0}
   bindToRightControllerOnStart: 1
-  gripOffset: {x: 0, y: -0.04, z: 0.08}
-  gripEulerAngles: {x: 68, y: 0, z: 0}
+  gripOffset: {x: 0, y: -0.025, z: 0.08}
+  gripEulerAngles: {x: 0, y: 0, z: 0}
   fireAction:
     m_UseReference: 0
     m_Action:
@@ -2481,14 +2481,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 50000001}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.2164396, z: 0, w: 0.976296}
-  m_LocalPosition: {x: -0.95, y: 1.35, z: 1.05}
+  m_LocalRotation: {x: 0.12940952, y: 0.2164396, z: -0.028886, w: 0.967296}
+  m_LocalPosition: {x: -0.65, y: 1.05, z: 0.85}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 50000012}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 25, z: 0}
+  m_LocalEulerAnglesHint: {x: 15, y: 25, z: 0}
 --- !u!114 &50000003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2537,7 +2537,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.1, y: 0.7, z: 0.04}
+  m_LocalScale: {x: 0.42, y: 0.28, z: 0.02}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 50000002}

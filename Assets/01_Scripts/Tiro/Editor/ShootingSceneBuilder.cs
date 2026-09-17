@@ -106,21 +106,6 @@ namespace Tiro.Editor
             backstop.transform.localScale = new Vector3(18f, 7f, 1f);
             if (matGunBlack != null) backstop.GetComponent<Renderer>().material = matGunBlack;
 
-            // Paredes laterales del túnel de tiro
-            GameObject leftWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            leftWall.name = "Tunnel_Left_Wall";
-            leftWall.transform.SetParent(rangeRoot.transform);
-            leftWall.transform.position = new Vector3(-8f, 3f, 25f);
-            leftWall.transform.localScale = new Vector3(0.5f, 6f, 60f);
-            if (matFloor != null) leftWall.GetComponent<Renderer>().material = matFloor;
-
-            GameObject rightWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            rightWall.name = "Tunnel_Right_Wall";
-            rightWall.transform.SetParent(rangeRoot.transform);
-            rightWall.transform.position = new Vector3(8f, 3f, 25f);
-            rightWall.transform.localScale = new Vector3(0.5f, 6f, 60f);
-            if (matFloor != null) rightWall.GetComponent<Renderer>().material = matFloor;
-
             // 4. Construir las Dianas Concéntricas Olímpicas a 10m, 25m y 50m
             List<TargetBoard> targetBoards = new List<TargetBoard>();
             targetBoards.Add(CreateTargetBoard("Target_10m", new Vector3(0f, 1.4f, 10f), 10f, "Carril 1 (10 Metros)", targetConfig, matTargetWhite, matTargetBlack, matTargetGold, matGunBlack));
@@ -132,10 +117,10 @@ namespace Tiro.Editor
             pistolObj.transform.position = new Vector3(0.25f, 0.94f, 0.85f);
             OlympicPistol pistolComponent = pistolObj.GetComponent<OlympicPistol>();
 
-            // 6. Monitor HUD Olímpico en el puesto de tiro
+            // 6. Monitor HUD Olímpico en el mostrador de tiro (Terminal compacto tipo SIUS)
             GameObject hudObj = BuildShootingHUD(matGunBlack);
-            hudObj.transform.position = new Vector3(-0.95f, 1.35f, 1.05f);
-            hudObj.transform.rotation = Quaternion.Euler(0f, 25f, 0f);
+            hudObj.transform.position = new Vector3(-0.65f, 1.05f, 0.85f);
+            hudObj.transform.rotation = Quaternion.Euler(15f, 25f, 0f);
 
             // 7. Manager del Polígono de Tiro
             GameObject managerObj = new GameObject("ShootingRangeManager");
@@ -383,6 +368,8 @@ namespace Tiro.Editor
             so.FindProperty("slideTransform").objectReferenceValue = slide.transform;
             so.FindProperty("audioSource").objectReferenceValue = audioSource;
             so.FindProperty("bindToRightControllerOnStart").boolValue = true;
+            so.FindProperty("gripOffset").vector3Value = new Vector3(0f, -0.025f, 0.08f);
+            so.FindProperty("gripEulerAngles").vector3Value = Vector3.zero;
             so.ApplyModifiedProperties();
 
             return pistolRoot;
@@ -392,31 +379,32 @@ namespace Tiro.Editor
         {
             GameObject hudRoot = new GameObject("Olympic_Shooting_HUD");
 
-            // Soporte físico del monitor
+            // Soporte físico del monitor en el mostrador
             GameObject monitorStand = GameObject.CreatePrimitive(PrimitiveType.Cube);
             monitorStand.name = "Monitor_Stand";
             monitorStand.transform.SetParent(hudRoot.transform);
-            monitorStand.transform.localPosition = new Vector3(0f, -0.45f, 0f);
-            monitorStand.transform.localScale = new Vector3(0.08f, 0.9f, 0.08f);
+            monitorStand.transform.localPosition = new Vector3(0f, -0.15f, 0f);
+            monitorStand.transform.localScale = new Vector3(0.04f, 0.18f, 0.04f);
             if (matBacking != null) monitorStand.GetComponent<Renderer>().material = matBacking;
 
+            // Marco del monitor (Pantalla deportiva compacta 17" sobre la mesa)
             GameObject monitorFrame = GameObject.CreatePrimitive(PrimitiveType.Cube);
             monitorFrame.name = "Monitor_Frame";
             monitorFrame.transform.SetParent(hudRoot.transform);
             monitorFrame.transform.localPosition = Vector3.zero;
-            monitorFrame.transform.localScale = new Vector3(1.1f, 0.7f, 0.04f);
+            monitorFrame.transform.localScale = new Vector3(0.42f, 0.28f, 0.02f);
             if (matBacking != null) monitorFrame.GetComponent<Renderer>().material = matBacking;
 
             // Canvas WorldSpace
             GameObject canvasObj = new GameObject("HUD_Canvas");
             canvasObj.transform.SetParent(hudRoot.transform);
-            canvasObj.transform.localPosition = new Vector3(0f, 0f, -0.025f);
+            canvasObj.transform.localPosition = new Vector3(0f, 0f, -0.012f);
 
             Canvas canvas = canvasObj.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             RectTransform rect = canvasObj.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(1000f, 650f);
-            rect.localScale = new Vector3(0.001f, 0.001f, 0.001f);
+            rect.sizeDelta = new Vector2(840f, 560f);
+            rect.localScale = new Vector3(0.0005f, 0.0005f, 0.0005f);
 
             // Textos TMP
             GameObject scoreObj = new GameObject("ScoreText");

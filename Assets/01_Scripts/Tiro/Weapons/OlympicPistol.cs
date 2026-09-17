@@ -39,19 +39,22 @@ namespace Tiro.Weapons
         [Header("Direct VR Hand Binding")]
         [Tooltip("Si es true, la pistola se vincula automáticamente al mando derecho sin necesidad de recogerla del suelo.")]
         [SerializeField] private bool bindToRightControllerOnStart = true;
-        [SerializeField] private Vector3 gripOffset = new Vector3(0f, -0.04f, 0.08f);
-        [SerializeField] private Vector3 gripEulerAngles = new Vector3(68f, 0f, 0f);
+        [SerializeField] private Vector3 gripOffset = new Vector3(0f, -0.025f, 0.08f);
+        [SerializeField] private Vector3 gripEulerAngles = Vector3.zero; // Apuntar 100% al frente (+Z)
 
-        [Header("Input Actions")]
+        [Header("Input Actions (Opcional - se complementa con lectura directa de hardware XR)")]
         [SerializeField] private InputActionProperty fireAction;
         [SerializeField] private InputActionProperty reloadAction;
 
         private int currentAmmo;
         private float lastFireTimestamp = -10f;
         private bool isReloading = false;
+        private bool wasTriggerPulled = false;
+        private bool wasReloadBtnPressed = false;
         private Vector3 slideInitialLocalPos;
         private XRGrabInteractable grabInteractable;
         private XRBaseInputInteractor boundInteractor;
+        private Transform boundHandTarget;
 
         public int CurrentAmmo => currentAmmo;
         public int MaxAmmo => pistolData != null ? pistolData.magazineCapacity : 10;
@@ -81,6 +84,29 @@ namespace Tiro.Weapons
             }
         }
 
+        private void OnEnable()
+        {
+            try
+            {
+                if (fireAction.action != null && !fireAction.action.enabled) fireAction.action.Enable();
+                if (reloadAction.action != null && !reloadAction.action.enabled) reloadAction.action.Enable();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[OlympicPistol] Error activando InputActions: {ex.Message}");
+            }
+        }
+
+        private void OnDisable()
+        {
+            try
+            {
+                if (fireAction.action != null && fireAction.action.enabled) fireAction.action.Disable();
+                if (reloadAction.action != null && reloadAction.action.enabled) reloadAction.action.Disable();
+            }
+            catch (Exception) { }
+        }
+
         private void Start()
         {
             if (grabInteractable != null)
@@ -90,10 +116,19 @@ namespace Tiro.Weapons
 
             if (bindToRightControllerOnStart)
             {
-                StartCoroutine(BindToRightControllerRoutine());
+                BindToRightHand();
             }
 
             OnAmmoChanged?.Invoke(currentAmmo, MaxAmmo);
+        }
+
+        private void LateUpdate()
+        {
+            // Garantizar que la pistola permanezca vinculada al mando derecho
+            if (bindToRightControllerOnStart && (boundHandTarget == null || transform.parent != boundHandTarget))
+            {
+                BindToRightHand();
+            }
         }
 
         private void OnDestroy()
@@ -104,34 +139,22 @@ namespace Tiro.Weapons
             }
         }
 
-        private IEnumerator BindToRightControllerRoutine()
+        /// <summary>
+        /// Localiza el mando derecho del jugador en la jerarquía XR y emparenta la pistola de forma precisa.
+        /// </summary>
+        public void BindToRightHand()
         {
-            yield return null; // Esperar inicialización del stack XR
-
-            var interactors = FindObjectsByType<XRBaseInputInteractor>(FindObjectsSortMode.None);
-            Transform targetHand = null;
-
-            foreach (var interactor in interactors)
+            if (boundHandTarget == null)
             {
-                string name = interactor.name.ToLower();
-                Transform p = interactor.transform.parent;
-                string pName = p != null ? p.name.ToLower() : "";
-
-                if (name.Contains("right") || pName.Contains("right"))
-                {
-                    targetHand = interactor.transform;
-                    boundInteractor = interactor;
-                    break;
-                }
+                boundHandTarget = FindRightHandTransform();
             }
 
-            if (targetHand != null)
+            if (boundHandTarget != null)
             {
-                transform.SetParent(targetHand, false);
+                transform.SetParent(boundHandTarget, false);
                 transform.localPosition = gripOffset;
                 transform.localRotation = Quaternion.Euler(gripEulerAngles);
 
-                // Desactivar rigidbody no cinemático para evitar jitter
                 Rigidbody rb = GetComponent<Rigidbody>();
                 if (rb != null)
                 {
@@ -146,6 +169,76 @@ namespace Tiro.Weapons
             }
         }
 
+        private Transform FindRightHandTransform()
+        {
+            // 1. Buscar controladores XRBaseController
+            var controllers = FindObjectsByType<UnityEngine.XR.Interaction.Toolkit.XRBaseController>(FindObjectsSortMode.None);
+            foreach (var c in controllers)
+            {
+                string n = c.name.ToLower();
+                if (n.Contains("right"))
+                {
+                    return c.transform;
+                }
+            }
+
+            // 2. Buscar en XROrigin CameraFloorOffset
+            var origin = FindAnyObjectByType<Unity.XR.CoreUtils.XROrigin>();
+            if (origin != null && origin.CameraFloorOffsetObject != null)
+            {
+                var children = origin.CameraFloorOffsetObject.GetComponentsInChildren<Transform>(true);
+                foreach (var t in children)
+                {
+                    string lower = t.name.ToLower();
+                    if (lower.Contains("right") && (lower.Contains("controller") || lower.Contains("hand")))
+                    {
+                        if (!lower.Contains("ray") && !lower.Contains("poke") && !lower.Contains("teleport") && !lower.Contains("visual"))
+                        {
+                            return t;
+                        }
+                    }
+                }
+            }
+
+            // 3. Buscar interactores XR con "right"
+            var interactors = FindObjectsByType<XRBaseInputInteractor>(FindObjectsSortMode.None);
+            foreach (var it in interactors)
+            {
+                string n = it.name.ToLower();
+                if (n.Contains("right"))
+                {
+                    boundInteractor = it;
+                    return it.transform;
+                }
+                if (it.transform.parent != null && it.transform.parent.name.ToLower().Contains("right"))
+                {
+                    boundInteractor = it;
+                    return it.transform.parent;
+                }
+            }
+
+            // 4. Búsqueda exhaustiva por nombre en la jerarquía
+            var allGos = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            Transform candidate = null;
+            for (int i = 0; i < allGos.Length; i++)
+            {
+                string n = allGos[i].name.ToLower();
+                if (n == "right hand" || n == "right controller" || n == "righthand controller" || n == "righthand")
+                {
+                    return allGos[i].transform;
+                }
+                if (n.Contains("right") && (n.Contains("hand") || n.Contains("controller")))
+                {
+                    if (!n.Contains("visual") && !n.Contains("callout") && !n.Contains("mesh"))
+                    {
+                        if (candidate == null) candidate = allGos[i].transform;
+                    }
+                }
+            }
+
+            return candidate;
+        }
+
         private void Update()
         {
             HandleInput();
@@ -154,12 +247,71 @@ namespace Tiro.Weapons
 
         private void HandleInput()
         {
+            bool fireRequested = false;
+            bool reloadRequested = false;
+
+            // 1. Hardware Directo XR (Meta Quest / OpenXR Controllers)
+            var rightDevice = UnityEngine.XR.InputDevices.GetDeviceAtXRNode(UnityEngine.XR.XRNode.RightHand);
+            if (rightDevice.isValid)
+            {
+                bool triggerPressed = false;
+                if (rightDevice.TryGetFeatureValue(UnityEngine.XR.CommonUsages.triggerButton, out bool btnVal) && btnVal)
+                {
+                    triggerPressed = true;
+                }
+                else if (rightDevice.TryGetFeatureValue(UnityEngine.XR.CommonUsages.trigger, out float triggerAxis) && triggerAxis > 0.45f)
+                {
+                    triggerPressed = true;
+                }
+
+                if (triggerPressed && !wasTriggerPulled)
+                {
+                    fireRequested = true;
+                }
+                wasTriggerPulled = triggerPressed;
+
+                // Botón A o B para recargar
+                bool reloadBtn = false;
+                if (rightDevice.TryGetFeatureValue(UnityEngine.XR.CommonUsages.primaryButton, out bool aVal) && aVal) reloadBtn = true;
+                if (rightDevice.TryGetFeatureValue(UnityEngine.XR.CommonUsages.secondaryButton, out bool bVal) && bVal) reloadBtn = true;
+
+                if (reloadBtn && !wasReloadBtnPressed)
+                {
+                    reloadRequested = true;
+                }
+                wasReloadBtnPressed = reloadBtn;
+            }
+
+            // 2. Input System Action Properties (si están mapeadas)
             if (fireAction.action != null && fireAction.action.WasPressedThisFrame())
+            {
+                fireRequested = true;
+            }
+            if (reloadAction.action != null && reloadAction.action.WasPressedThisFrame())
+            {
+                reloadRequested = true;
+            }
+
+            // 3. Fallback Teclado / Ratón para depuración en Unity Editor y Simulator
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                fireRequested = true;
+            }
+            if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+            {
+                fireRequested = true;
+            }
+            if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+            {
+                reloadRequested = true;
+            }
+
+            // Ejecutar acciones solicitadas
+            if (fireRequested)
             {
                 TryFire();
             }
-
-            if (reloadAction.action != null && reloadAction.action.WasPressedThisFrame())
+            if (reloadRequested)
             {
                 TryReload();
             }
