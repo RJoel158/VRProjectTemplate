@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c72326ca7664a59abef869c54667ca2, type: 3}
+  m_Name: ShootingRangeConfig_Olympic
+  m_EditorClassIdentifier: Tiro.Data::ShootingRangeConfigSO
+  shotsPerSeries: 10
+  timeLimitSeconds: 90
+  goldMedalScore: 90
+  silverMedalScore: 75
+  bronzeMedalScore: 60
+  nearDistance: 10
+  midDistance: 25
+  farDistance: 50
