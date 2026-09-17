@@ -13,6 +13,11 @@ namespace Tiro.Targets
         [SerializeField] private int pointValue = 10;
         [SerializeField] private float lifetimeSeconds = 6f;
 
+        [Header("Frisbee Aerodynamics & Glide")]
+        [SerializeField] private float liftRatio = 0.78f; // Contrarresta el 78% de la gravedad para un planeo prolongado tipo frisbee
+        [SerializeField] private float spinSpeed = 600f;  // Giro estabilizador giroscópico visual
+        [SerializeField] private float airDrag = 0.04f;   // Resistencia aerodinámica suave
+
         private Rigidbody rb;
         private bool isBroken = false;
 
@@ -26,6 +31,35 @@ namespace Tiro.Targets
         private void Start()
         {
             Destroy(gameObject, lifetimeSeconds);
+        }
+
+        private void FixedUpdate()
+        {
+            if (rb == null || isBroken) return;
+
+            Vector3 horizVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+            float speed = horizVel.magnitude;
+
+            if (speed > 0.5f)
+            {
+                // 1. Sustentación aerodinámica de planeador / frisbee:
+                // Genera empuje vertical proporcional a la velocidad horizontal que amortigua la caída por gravedad
+                float maxLift = Mathf.Abs(Physics.gravity.y) * liftRatio;
+                float currentLift = Mathf.Clamp(speed * 0.82f, 0f, maxLift);
+                rb.AddForce(Vector3.up * currentLift, ForceMode.Acceleration);
+
+                // 2. Fricción aerodinámica suave en el plano horizontal para una deceleración progresiva
+                rb.AddForce(-horizVel.normalized * (speed * airDrag), ForceMode.Acceleration);
+
+                // 3. Suave orientación aerodinámica inclinada hacia la trayectoria
+                Vector3 forwardFlat = horizVel.normalized;
+                Vector3 tiltAxis = Vector3.Cross(Vector3.up, forwardFlat);
+                Quaternion baseRotation = Quaternion.AngleAxis(-5f, tiltAxis);
+                transform.rotation = Quaternion.Slerp(transform.rotation, baseRotation, 4f * Time.fixedDeltaTime);
+            }
+
+            // Giro rápido giroscópico sobre el eje normal del disco
+            transform.Rotate(Vector3.up, spinSpeed * Time.fixedDeltaTime, Space.Self);
         }
 
         public void RegisterShotHit(Vector3 hitPoint, Vector3 hitDirection)

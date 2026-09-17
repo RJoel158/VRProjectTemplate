@@ -93,30 +93,33 @@ namespace Tiro.Targets
 
             if (launchLeftToRight)
             {
-                // Lanzamiento cruzado auténtico de Fosa / Skeet: vuela de izquierda a derecha frente al tirador
+                // Trayectoria fluida y elegante tipo frisbee planeando frente al tirador (de izquierda a derecha)
                 origin = new Vector3(leftBunkerOffset.x, leftBunkerOffset.y, leftBunkerOffset.z);
-                float vx = UnityEngine.Random.Range(14.5f, 18.5f); // Desplazamiento horizontal de izq a der
-                float vy = UnityEngine.Random.Range(7.5f, 10.5f);  // Arco parabólico alto en el cielo
-                float vz = UnityEngine.Random.Range(-0.8f, 1.8f);  // Ligera deriva en distancia
+                float vx = UnityEngine.Random.Range(10.0f, 12.5f); // Desplazamiento horizontal legible y suave
+                float vy = UnityEngine.Random.Range(4.2f, 5.8f);   // Elevación inicial suave que permite un planeo majestuoso
+                float vz = UnityEngine.Random.Range(1.0f, 2.5f);   // Ligero avance hacia el fondo del campo
                 launchVelocity = new Vector3(vx, vy, vz);
             }
             else
             {
                 origin = launchPoint != null ? launchPoint.position : transform.position;
-                float elevation = UnityEngine.Random.Range(minElevationAngle, maxElevationAngle);
+                float elevation = UnityEngine.Random.Range(20f, 35f);
                 float azimuth = UnityEngine.Random.Range(minAzimuthAngle, maxAzimuthAngle);
                 Quaternion launchRot = Quaternion.Euler(-elevation, azimuth, 0f);
-                launchVelocity = (launchRot * Vector3.forward) * UnityEngine.Random.Range(minLaunchSpeed, maxLaunchSpeed);
+                launchVelocity = (launchRot * Vector3.forward) * UnityEngine.Random.Range(10.5f, 13.5f);
             }
 
-            // Construir modelo procedural del plato (disco naranja fluorescente de 24cm)
+            // Construir modelo procedural del plato (disco naranja fluorescente de 28cm con perfil frisbee)
             GameObject clayObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             clayObj.name = $"ClayPigeon_{claysLaunched + 1}";
             clayObj.transform.position = origin;
-            clayObj.transform.localScale = new Vector3(0.24f, 0.025f, 0.24f);
+            clayObj.transform.localScale = new Vector3(0.28f, 0.025f, 0.28f);
 
-            var col = clayObj.GetComponent<Collider>();
-            if (col == null) col = clayObj.AddComponent<MeshCollider>();
+            // Reemplazar collider por un BoxCollider de dimensiones óptimas para impacto consistente de perdigones
+            var defaultCol = clayObj.GetComponent<Collider>();
+            if (defaultCol != null) Object.Destroy(defaultCol);
+            var hitCol = clayObj.AddComponent<BoxCollider>();
+            hitCol.size = new Vector3(1.15f, 3.5f, 1.15f);
 
             var r = clayObj.GetComponent<Renderer>();
             if (r != null)
@@ -133,10 +136,9 @@ namespace Tiro.Targets
             }
 
             var rb = clayObj.AddComponent<Rigidbody>();
-            rb.mass = 0.12f;
+            rb.mass = 0.11f;
             rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
             rb.linearVelocity = launchVelocity;
-            rb.angularVelocity = new Vector3(0f, 35f, 0f); // Giro estabilizador tipo frisbee
 
             var clay = clayObj.AddComponent<ClayPigeon>();
             clay.OnClayBroken += HandleClayBroken;

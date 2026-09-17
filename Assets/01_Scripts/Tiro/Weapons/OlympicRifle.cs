@@ -76,6 +76,12 @@ namespace Tiro.Weapons
             {
                 BindToRightHand();
             }
+            else
+            {
+                // Bloqueo firme de posición y rotación relativa al mando para evitar desorientación o giros anómalos
+                transform.localPosition = gripOffset;
+                transform.localRotation = Quaternion.Euler(gripEulerAngles);
+            }
         }
 
         public void BindToRightHand()
@@ -99,18 +105,45 @@ namespace Tiro.Weapons
 
         private Transform FindRightHandTransform()
         {
-            // 1. Buscar controladores XRBaseController
+            // 1. Prioridad Máxima: Buscar coincidencia exacta por nombre de mando físico
+            var allGos = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var go in allGos)
+            {
+                string n = go.name.Trim();
+                if (n.Equals("Right Controller", StringComparison.OrdinalIgnoreCase) ||
+                    n.Equals("RightHand Controller", StringComparison.OrdinalIgnoreCase) ||
+                    n.Equals("Right Hand", StringComparison.OrdinalIgnoreCase) ||
+                    n.Equals("RightHand", StringComparison.OrdinalIgnoreCase))
+                {
+                    return go.transform;
+                }
+            }
+
+            // 2. Buscar GameObject con TrackedPoseDriver cuyo nombre corresponda al mando derecho físico
+            var poseDrivers = FindObjectsByType<UnityEngine.InputSystem.XR.TrackedPoseDriver>(FindObjectsSortMode.None);
+            foreach (var pd in poseDrivers)
+            {
+                string n = pd.gameObject.name.ToLower();
+                if (n.Contains("right") && !n.Contains("stabiliz") && !n.Contains("attach") &&
+                    !n.Contains("origin") && !n.Contains("teleport") && !n.Contains("ray"))
+                {
+                    return pd.transform;
+                }
+            }
+
+            // 3. Buscar controladores XRBaseController estándar
             var controllers = FindObjectsByType<UnityEngine.XR.Interaction.Toolkit.XRBaseController>(FindObjectsSortMode.None);
             foreach (var c in controllers)
             {
                 string n = c.name.ToLower();
-                if (n.Contains("right"))
+                if (n.Contains("right") && !n.Contains("stabiliz") && !n.Contains("attach") &&
+                    !n.Contains("teleport") && !n.Contains("ray"))
                 {
                     return c.transform;
                 }
             }
 
-            // 2. Buscar en XROrigin CameraFloorOffset
+            // 4. Buscar en XROrigin CameraFloorOffset filtrando estrictamente estabilizadores, rayos y teletransporte
             var origin = FindAnyObjectByType<Unity.XR.CoreUtils.XROrigin>();
             if (origin != null && origin.CameraFloorOffsetObject != null)
             {
@@ -120,7 +153,10 @@ namespace Tiro.Weapons
                     string lower = t.name.ToLower();
                     if (lower.Contains("right") && (lower.Contains("controller") || lower.Contains("hand")))
                     {
-                        if (!lower.Contains("ray") && !lower.Contains("poke") && !lower.Contains("teleport") && !lower.Contains("visual"))
+                        if (!lower.Contains("stabiliz") && !lower.Contains("attach") && !lower.Contains("origin") &&
+                            !lower.Contains("ray") && !lower.Contains("poke") && !lower.Contains("teleport") &&
+                            !lower.Contains("visual") && !lower.Contains("interactor") && !lower.Contains("turn") &&
+                            !lower.Contains("move"))
                         {
                             return t;
                         }
@@ -128,41 +164,23 @@ namespace Tiro.Weapons
                 }
             }
 
-            // 3. Buscar interactores XR con "right"
-            var interactors = FindObjectsByType<XRBaseInputInteractor>(FindObjectsSortMode.None);
-            foreach (var it in interactors)
-            {
-                string n = it.name.ToLower();
-                if (n.Contains("right"))
-                {
-                    return it.transform;
-                }
-                if (it.transform.parent != null && it.transform.parent.name.ToLower().Contains("right"))
-                {
-                    return it.transform.parent;
-                }
-            }
-
-            // 4. Búsqueda exhaustiva por nombre en la jerarquía
-            var allGos = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
-            Transform candidate = null;
+            // Fallback seguro de jerarquía
             for (int i = 0; i < allGos.Length; i++)
             {
                 string n = allGos[i].name.ToLower();
-                if (n == "right hand" || n == "right controller" || n == "righthand controller" || n == "righthand")
-                {
-                    return allGos[i].transform;
-                }
                 if (n.Contains("right") && (n.Contains("hand") || n.Contains("controller")))
                 {
-                    if (!n.Contains("visual") && !n.Contains("callout") && !n.Contains("mesh"))
+                    if (!n.Contains("stabiliz") && !n.Contains("attach") && !n.Contains("origin") &&
+                        !n.Contains("ray") && !n.Contains("poke") && !n.Contains("visual") &&
+                        !n.Contains("callout") && !n.Contains("mesh") && !n.Contains("interactor") &&
+                        !n.Contains("teleport") && !n.Contains("turn") && !n.Contains("move"))
                     {
-                        if (candidate == null) candidate = allGos[i].transform;
+                        return allGos[i].transform;
                     }
                 }
             }
 
-            return candidate;
+            return null;
         }
 
         private void Update()
