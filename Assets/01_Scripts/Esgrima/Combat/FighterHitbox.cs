@@ -24,7 +24,7 @@ namespace Esgrima.Combat
         [SerializeField] private AudioSource audioSource;
         [SerializeField] private ParticleSystem hitVFXPrefab;
         [Tooltip("Tiempo mínimo entre impactos recibidos para evitar retrocesos múltiples en una misma pasada.")]
-        [SerializeField] private float hitCooldown = 0.45f;
+        [SerializeField] private float hitCooldown = 0.60f;
 
         public bool IsPlayer => isPlayer;
         public FighterConfigSO Config => fighterConfig;

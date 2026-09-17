@@ -23,7 +23,11 @@ namespace Esgrima.Combat
         [Tooltip("Curva de desaceleración del impacto.")]
         [SerializeField] private AnimationCurve knockbackCurve = AnimationCurve.EaseInOut(0, 1, 1, 0);
 
+        [Tooltip("Intervalo mínimo de tiempo en segundos entre aplicaciones sucesivas de retroceso.")]
+        [SerializeField] private float minKnockbackInterval = 0.5f;
+
         private Coroutine activeKnockbackCoroutine;
+        private float lastKnockbackTime = -10f;
 
         public event Action<Vector3, float> OnKnockbackApplied;
 
@@ -40,6 +44,10 @@ namespace Esgrima.Combat
         /// <param name="force">Magnitud del empuje.</param>
         public void ApplyKnockback(Vector3 direction, float force)
         {
+            // Cooldown de seguridad para evitar spam de empujes descontrolados
+            if (Time.time - lastKnockbackTime < minKnockbackInterval) return;
+            lastKnockbackTime = Time.time;
+
             // Asegurar que el empuje sea predominantemente horizontal para mantener a los luchadores en la arena
             direction.y = 0;
             if (direction.sqrMagnitude < 0.001f)

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SwordData_Rival
   m_EditorClassIdentifier: Esgrima.Data::SwordDataSO
   swordName: Espada Roja del Rival
-  knockbackImpulse: 1.15
+  knockbackImpulse: 0.7
   damage: 1
   minSwingVelocity: 0.8
   hapticIntensity: 0.6

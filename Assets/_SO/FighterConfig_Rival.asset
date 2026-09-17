@@ -15,13 +15,13 @@ MonoBehaviour:
   fighterName: Campeon de Esgrima
   knockbackMultiplier: 1.0
   maxHitsAllowed: 3
-  attackIntervalMin: 2.5
-  attackIntervalMax: 4.5
-  windupDuration: 0.9
-  staggerDuration: 1.4
-  blockChance: 0.4
-  moveSpeed: 1.2
-  strafeSpeed: 0.85
-  maxSafeArenaRadius: 3.6
+  attackIntervalMin: 1.2
+  attackIntervalMax: 2.2
+  windupDuration: 0.45
+  staggerDuration: 1.3
+  blockChance: 0.55
+  moveSpeed: 1.8
+  strafeSpeed: 1.3
+  maxSafeArenaRadius: 3.8
   comboChance: 0.5
-  parryVulnerabilityMultiplier: 1.75
+  parryVulnerabilityMultiplier: 1.4

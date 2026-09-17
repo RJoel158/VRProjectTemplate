@@ -194,18 +194,13 @@ namespace Esgrima.Core
             {
                 aiScore++;
                 OnScoreChanged?.Invoke(playerScore, aiScore);
-                OnRoundEnded?.Invoke("¡Te han golpeado! Punto para el Rival");
+                OnCombatBanner?.Invoke("¡El rival te ha tocado! ¡Cuidado con el borde!");
 
                 int targetScore = matchConfig != null ? matchConfig.roundsToWin : 5;
                 if (aiScore >= targetScore)
                 {
+                    OnRoundEnded?.Invoke("¡Derrota por puntos! El rival ha ganado.");
                     EndMatch(false);
-                }
-                else
-                {
-                    currentRound++;
-                    float delay = matchConfig != null ? matchConfig.roundResetDelay : 2.0f;
-                    StartCoroutine(RestartRoundAfterDelay(delay));
                 }
             }
             else
@@ -220,19 +215,14 @@ namespace Esgrima.Core
                 }
 
                 OnScoreChanged?.Invoke(playerScore, aiScore);
-                string msg = wasParryCounter ? "¡PARRY Y CONTRAATAQUE CRÍTICO!" : "¡Estocada válida! ¡Punto para ti!";
-                OnRoundEnded?.Invoke(msg);
+                string msg = wasParryCounter ? "¡PARRY Y CONTRAATAQUE CRÍTICO! (+150 pts)" : "¡Estocada válida! (+50 pts)";
+                OnCombatBanner?.Invoke(msg);
 
                 int targetScore = matchConfig != null ? matchConfig.roundsToWin : 5;
                 if (playerScore >= targetScore)
                 {
+                    OnRoundEnded?.Invoke("¡Victoria por puntos! ¡Excelente esgrima!");
                     EndMatch(true);
-                }
-                else
-                {
-                    currentRound++;
-                    float delay = matchConfig != null ? matchConfig.roundResetDelay : 2.0f;
-                    StartCoroutine(RestartRoundAfterDelay(delay));
                 }
             }
         }

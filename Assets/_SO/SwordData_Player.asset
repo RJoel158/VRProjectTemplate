@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SwordData_Player
   m_EditorClassIdentifier: Esgrima.Data::SwordDataSO
   swordName: Espada Dorada de Jugador
-  knockbackImpulse: 1.25
+  knockbackImpulse: 0.8
   damage: 1
   minSwingVelocity: 0.05
   hapticIntensity: 0.85
