@@ -501,8 +501,7 @@ namespace Tiro.Weapons
                 muzzleFlashParticles.Play();
             }
 
-            AudioClip shotSound = (pistolData != null && pistolData.gunshotSound != null) ? pistolData.gunshotSound : Tiro.Audio.ShootingSoundFX.GetGunshotPistol();
-            PlayWeaponSound(shotSound, 1f);
+            ShootingAudioManager.PlayGunshot(Core.ShootingDiscipline.DynamicPistolWall, pistolData != null ? pistolData.gunshotSound : null);
 
             // 4. Retroceso de corredera y cabeceo
             StartCoroutine(AnimateRecoil());
@@ -577,8 +576,7 @@ namespace Tiro.Weapons
             isReloading = true;
             UpdateAmmoDisplay();
 
-            AudioClip reloadClip = (pistolData != null && pistolData.reloadSound != null) ? pistolData.reloadSound : Tiro.Audio.ShootingSoundFX.GetReloadSound();
-            PlayWeaponSound(reloadClip, 1f);
+            ShootingAudioManager.PlayReload(pistolData != null ? pistolData.reloadSound : null);
 
             // Breve vibración de recarga
             SendHaptic(0.4f, 0.08f);
@@ -596,30 +594,14 @@ namespace Tiro.Weapons
 
         private void PlayDryFireSound()
         {
-            AudioClip dryClip = (pistolData != null && pistolData.dryFireSound != null) ? pistolData.dryFireSound : Tiro.Audio.ShootingSoundFX.GetDryFireSound();
-            PlayWeaponSound(dryClip, 0.85f);
+            ShootingAudioManager.PlayDryFire(pistolData != null ? pistolData.dryFireSound : null);
             SendHaptic(0.25f, 0.05f);
         }
 
         public void PlayWeaponSound(AudioClip clip, float volume = 1f)
         {
             if (clip == null) return;
-
-            if (audioSource != null)
-            {
-                audioSource.spatialBlend = 0f;
-                audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
-                audioSource.minDistance = 100f;
-                audioSource.maxDistance = 1000f;
-                audioSource.volume = volume;
-                audioSource.mute = false;
-                audioSource.enabled = true;
-                audioSource.PlayOneShot(clip, volume);
-            }
-
-            Camera cam = Camera.main;
-            Vector3 playPos = cam != null ? cam.transform.position : transform.position;
-            AudioSource.PlayClipAtPoint(clip, playPos, volume);
+            ShootingAudioManager.PlaySound(clip, volume);
         }
 
         private void TriggerHaptics()

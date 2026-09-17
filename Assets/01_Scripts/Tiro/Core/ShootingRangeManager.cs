@@ -129,9 +129,8 @@ namespace Tiro.Core
                 }
             }
 
-            // Garantizar volumen global activo
-            AudioListener.volume = 1f;
-            AudioListener.pause = false;
+            // Asegurar que el sistema global de audio ShootingAudioManager esté activo
+            Tiro.Audio.ShootingAudioManager.EnsureAudioSystemActive();
         }
 
         private void Start()
