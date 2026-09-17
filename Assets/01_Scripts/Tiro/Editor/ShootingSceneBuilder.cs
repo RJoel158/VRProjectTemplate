@@ -20,16 +20,34 @@ namespace Tiro.Editor
         private const string PauseMenuPrefabGuid = "fb0fc33f728c20c4da4e60734a5f1a43";
         private const string PistolPrefabPath = "Assets/03_Resources/Prefabs/Tiro/Olympic_Pistol_VR.prefab";
 
+        private const string SceneRebuiltKey = "ShootingScene_VR_Rebuilt_v3";
+
         [InitializeOnLoadMethod]
         private static void AutoBuildIfMissing()
         {
             EditorApplication.delayCall += () =>
             {
-                if (!File.Exists(PistolPrefabPath))
+                if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+
+                if (!SessionState.GetBool(SceneRebuiltKey, false))
                 {
+                    SessionState.SetBool(SceneRebuiltKey, true);
                     BuildScene();
                 }
                 FixSunReference();
+            };
+
+            EditorApplication.playModeStateChanged += (state) =>
+            {
+                if (state == PlayModeStateChange.EnteredEditMode)
+                {
+                    if (!SessionState.GetBool(SceneRebuiltKey, false))
+                    {
+                        SessionState.SetBool(SceneRebuiltKey, true);
+                        BuildScene();
+                    }
+                    FixSunReference();
+                }
             };
         }
 
@@ -58,6 +76,19 @@ namespace Tiro.Editor
         public static void BuildScene()
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+
+            // Eliminar cualquier cámara y AudioListener creados por defecto para que la única cámara sea la del XR Origin
+            // Esto elimina la vista lejana de tercera persona y el error de "2 audio listeners in the scene"
+            var defaultCameras = Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+            foreach (var cam in defaultCameras)
+            {
+                Object.DestroyImmediate(cam.gameObject);
+            }
+            var defaultListeners = Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
+            foreach (var l in defaultListeners)
+            {
+                Object.DestroyImmediate(l);
+            }
 
             // Cargar recursos y materiales
             var pistolData = AssetDatabase.LoadAssetAtPath<PistolDataSO>("Assets/_SO/PistolData_Olympic.asset");
@@ -236,9 +267,10 @@ namespace Tiro.Editor
                 }
             }
 
-            // Guardar escena en disco
+            // Guardar escena en disco y abrirla como la escena activa del Editor
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddSceneToBuildSettings(ScenePath);
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
 
             Debug.Log($"[ShootingSceneBuilder] ¡Escena de Tiro Deportivo Olímpico con 3 Disciplinas construida exitosamente en {ScenePath}!");
         }

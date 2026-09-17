@@ -77,7 +77,32 @@ namespace Tiro.Core
             }
             Instance = this;
 
+            // Garantizar que únicamente la cámara VR en primera persona de XR Origin esté activa
+            // (Destruye cualquier cámara estándar externa que cause vista lejana o conflicto de 2 AudioListeners)
+            CleanupRogueCamerasAndListeners();
+
             currentSaveData = ShootingSaveSystem.Load();
+        }
+
+        private void CleanupRogueCamerasAndListeners()
+        {
+            var cameras = FindObjectsByType<Camera>(FindObjectsSortMode.None);
+            foreach (var cam in cameras)
+            {
+                if (cam.GetComponentInParent<Unity.XR.CoreUtils.XROrigin>() == null)
+                {
+                    Destroy(cam.gameObject);
+                }
+            }
+
+            var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
+            foreach (var l in listeners)
+            {
+                if (l.GetComponentInParent<Unity.XR.CoreUtils.XROrigin>() == null)
+                {
+                    Destroy(l);
+                }
+            }
         }
 
         private void Start()
