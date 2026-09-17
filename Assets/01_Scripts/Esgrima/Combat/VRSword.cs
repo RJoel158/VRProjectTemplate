@@ -27,10 +27,12 @@ namespace Esgrima.Combat
 
         [Header("Hit Cooldown")]
         [SerializeField] private float hitCooldown = 0.35f;
+        [SerializeField] private float clashCooldown = 0.15f;
 
         private Vector3 lastTipPosition;
         private float currentBladeSpeed;
-        private float lastHitTimestamp;
+        private float lastFighterHitTimestamp;
+        private float lastClashTimestamp;
 
         public bool IsPlayerSword => isPlayerSword;
         public SwordDataSO Data => swordData;
@@ -74,7 +76,7 @@ namespace Esgrima.Combat
         {
             Vector3 start = bladeBase != null ? bladeBase.position : transform.position;
             Vector3 end = bladeTip != null ? bladeTip.position : transform.position + transform.up * 0.9f;
-            float radius = 0.12f;
+            float radius = 0.14f;
 
             Collider[] overlaps = Physics.OverlapCapsule(start, end, radius, ~0, QueryTriggerInteraction.Collide);
             for (int i = 0; i < overlaps.Length; i++)
@@ -95,6 +97,8 @@ namespace Esgrima.Combat
 
         private void HandleCollision(Collider other)
         {
+            if (other == null) return;
+
             // Ignorar colisiones consigo mismo o su propia estructura
             if (other.transform.IsChildOf(transform.root)) return;
 
@@ -124,8 +128,8 @@ namespace Esgrima.Combat
         private void ResolveSwordClash(VRSword otherSword)
         {
             // Evitar spam de choques en el mismo fotograma
-            if (Time.time - lastHitTimestamp < 0.15f) return;
-            lastHitTimestamp = Time.time;
+            if (Time.time - lastClashTimestamp < clashCooldown) return;
+            lastClashTimestamp = Time.time;
 
             Vector3 clashPoint = (bladeTip.position + otherSword.bladeTip.position) * 0.5f;
 
@@ -143,8 +147,8 @@ namespace Esgrima.Combat
 
         private void ResolveFighterHit(FighterHitbox targetHitbox)
         {
-            // Cooldown de golpe para evitar registrar múltiples hits en una misma pasada
-            if (Time.time - lastHitTimestamp < hitCooldown) return;
+            // Cooldown de golpe independiente del clash para no bloquear daño
+            if (Time.time - lastFighterHitTimestamp < hitCooldown) return;
 
             // Para el jugador, cualquier estocada o swing causa impacto válido
             float minSpeed = (swordData != null) ? swordData.minSwingVelocity : 0.05f;
@@ -153,7 +157,7 @@ namespace Esgrima.Combat
                 return;
             }
 
-            lastHitTimestamp = Time.time;
+            lastFighterHitTimestamp = Time.time;
 
             // Dirección del empuje: hacia adelante según la dirección de la espada o el golpe
             Vector3 pushDirection = (targetHitbox.transform.position - transform.position);
@@ -175,7 +179,7 @@ namespace Esgrima.Combat
         {
             if (!isPlayerSword || swordData == null) return;
 
-            // Si está agarrada mediante XRI Grab Interactable, enviar impulso al interactor activo
+            // 1. Si está agarrada mediante XRI Grab Interactable
             if (grabInteractable != null && grabInteractable.isSelected)
             {
                 foreach (var interactor in grabInteractable.interactorsSelecting)
@@ -184,6 +188,26 @@ namespace Esgrima.Combat
                     {
                         inputInteractor.SendHapticImpulse(swordData.hapticIntensity, swordData.hapticDurationSeconds);
                     }
+                }
+                return;
+            }
+
+            // 2. Si está vinculada directamente al mando derecho (SwordDirectBind)
+            var parentInteractor = GetComponentInParent<XRBaseInputInteractor>();
+            if (parentInteractor != null)
+            {
+                parentInteractor.SendHapticImpulse(swordData.hapticIntensity, swordData.hapticDurationSeconds);
+                return;
+            }
+
+            // 3. Fallback: buscar interactores del mando derecho
+            var allInteractors = FindObjectsByType<XRBaseInputInteractor>(FindObjectsSortMode.None);
+            foreach (var it in allInteractors)
+            {
+                string n = it.name.ToLower();
+                if (n.Contains("right") || (it.transform.parent != null && it.transform.parent.name.ToLower().Contains("right")))
+                {
+                    it.SendHapticImpulse(swordData.hapticIntensity, swordData.hapticDurationSeconds);
                 }
             }
         }

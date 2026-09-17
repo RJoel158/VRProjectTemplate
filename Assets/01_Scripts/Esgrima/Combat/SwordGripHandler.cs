@@ -89,10 +89,13 @@ namespace Esgrima.Combat
             // Bloqueo cinemático total para evitar que la física pelee con la mano
             if (rb != null)
             {
+                if (!rb.isKinematic)
+                {
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
                 rb.isKinematic = true;
                 rb.useGravity = false;
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
             }
 
             // Al estar en mano, el collider pasa a Trigger:
@@ -137,10 +140,13 @@ namespace Esgrima.Combat
         {
             if (rb != null)
             {
+                if (!rb.isKinematic)
+                {
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
                 rb.isKinematic = true;
                 rb.useGravity = false;
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
             }
 
             // Al soltarla, vuelve a sólido para que el rayo a distancia pueda volver a detectarla y agarrarla

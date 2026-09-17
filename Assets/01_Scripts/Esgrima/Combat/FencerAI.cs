@@ -52,6 +52,7 @@ namespace Esgrima.Combat
 
         private FencerState currentState = FencerState.Idle;
         private Coroutine behaviorRoutine;
+        private Coroutine stunRoutine;
         private Vector3 initialPosition;
         private Quaternion initialRotation;
 
@@ -93,7 +94,13 @@ namespace Esgrima.Combat
 
         private void Update()
         {
-            if (currentState == FencerState.Down) return;
+            if (currentState == FencerState.Down || currentState == FencerState.Idle) return;
+
+            // Mantener referencia al jugador actualizada dinámicamente
+            if (targetPlayer == null && Camera.main != null)
+            {
+                targetPlayer = Camera.main.transform;
+            }
 
             // Orientarse hacia el jugador
             if (targetPlayer != null)
@@ -151,7 +158,7 @@ namespace Esgrima.Combat
             }
             moveDir += rightDir * (currentStrafeSign * strafeSpd);
 
-            // 3. Delimitación de seguridad del Ring (evita caídas al vacío)
+            // 3. Delimitación de seguridad del Ring (evita caídas al vacío por movimiento propio)
             Vector3 currentPos = transform.position;
             Vector2 hPos = new Vector2(currentPos.x, currentPos.z);
             float safeLimit = config != null ? config.maxSafeArenaRadius : 3.6f;
@@ -180,24 +187,27 @@ namespace Esgrima.Combat
 
         public void StartAI()
         {
-            if (behaviorRoutine != null) StopCoroutine(behaviorRoutine);
+            StopAllCoroutines();
+            behaviorRoutine = null;
+            stunRoutine = null;
             currentState = FencerState.Guard;
             behaviorRoutine = StartCoroutine(AIBehaviorLoop());
         }
 
         public void StopAI()
         {
-            if (behaviorRoutine != null)
-            {
-                StopCoroutine(behaviorRoutine);
-                behaviorRoutine = null;
-            }
+            StopAllCoroutines();
+            behaviorRoutine = null;
+            stunRoutine = null;
             currentState = FencerState.Idle;
         }
 
         public void ResetFencer()
         {
-            StopAI();
+            StopAllCoroutines();
+            behaviorRoutine = null;
+            stunRoutine = null;
+            currentState = FencerState.Guard;
             transform.position = initialPosition;
             transform.rotation = initialRotation;
             if (swordArmPivot != null)
@@ -322,7 +332,8 @@ namespace Esgrima.Combat
             if (currentState == FencerState.Attack || currentState == FencerState.Windup)
             {
                 if (behaviorRoutine != null) StopCoroutine(behaviorRoutine);
-                StartCoroutine(StunRoutine());
+                if (stunRoutine != null) StopCoroutine(stunRoutine);
+                stunRoutine = StartCoroutine(StunRoutine());
             }
         }
 
@@ -347,11 +358,14 @@ namespace Esgrima.Combat
             float staggerTime = config != null ? config.staggerDuration : 1.4f;
             yield return new WaitForSeconds(staggerTime);
 
-            // Si no fue derrotado, reanudar combate
-            if (currentState != FencerState.Down)
+            // Si no fue derrotado ni el manager detuvo el combate, reanudar
+            if (currentState != FencerState.Down && currentState != FencerState.Idle)
             {
+                yield return AnimateArm(guardLocalPos, guardLocalRot, 0.25f);
+                currentState = FencerState.Guard;
                 behaviorRoutine = StartCoroutine(AIBehaviorLoop());
             }
+            stunRoutine = null;
         }
 
         private IEnumerator AnimateArm(Vector3 targetPos, Vector3 targetEulerRot, float duration)

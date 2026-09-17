@@ -723,8 +723,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6e4866c0ddcc4d3cb449cd1ca84dd13d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Esgrima.Combat::SwordDirectBind
-  localGripPosition: {x: 0, y: -0.035, z: 0.08}
-  bladeForwardAim: {x: 0, y: 0.18, z: 0.98}
+  localGripPosition: {x: 0.01, y: -0.04, z: 0.08}
+  bladeForwardAim: {x: 0, y: 0.22, z: 0.97}
   rightHandTarget: {fileID: 0}
 --- !u!114 &51000009
 MonoBehaviour:
