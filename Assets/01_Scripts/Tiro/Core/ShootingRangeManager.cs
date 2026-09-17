@@ -352,6 +352,31 @@ namespace Tiro.Core
             CompleteSeries(timeExpired: false);
         }
 
+        [Header("Sequence Tournament Mode")]
+        [SerializeField] private bool isSequenceMode = false;
+        private int sequenceTotalScore = 0;
+        private Coroutine sequenceTransitionRoutine;
+
+        public bool IsSequenceMode => isSequenceMode;
+
+        public void StartFullOlympicSequence()
+        {
+            if (sequenceTransitionRoutine != null)
+            {
+                StopCoroutine(sequenceTransitionRoutine);
+                sequenceTransitionRoutine = null;
+            }
+            isSequenceMode = true;
+            sequenceTotalScore = 0;
+            SelectDiscipline(ShootingDiscipline.DynamicPistolWall);
+        }
+
+        private IEnumerator SequenceTransitionRoutine(ShootingDiscipline nextDiscipline, float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            SelectDiscipline(nextDiscipline);
+        }
+
         private void CompleteSeries(bool timeExpired)
         {
             seriesActive = false;
@@ -403,6 +428,31 @@ namespace Tiro.Core
             }
 
             ShootingSaveSystem.Save(currentSaveData);
+
+            if (isSequenceMode)
+            {
+                sequenceTotalScore += currentSeriesScore;
+
+                if (activeDiscipline == ShootingDiscipline.DynamicPistolWall)
+                {
+                    OnSeriesFinished?.Invoke($"¡FASE 1 (PISTOLA) COMPLETADA! +{currentSeriesScore} pts\nPreparando Rifle de Precisión en 3s...", sequenceTotalScore, "🏆 CIRCUITO OLÍMPICO");
+                    sequenceTransitionRoutine = StartCoroutine(SequenceTransitionRoutine(ShootingDiscipline.OlympicRifleDistance, 3.5f));
+                    return;
+                }
+                else if (activeDiscipline == ShootingDiscipline.OlympicRifleDistance)
+                {
+                    OnSeriesFinished?.Invoke($"¡FASE 2 (RIFLE) COMPLETADA! +{currentSeriesScore} pts\nPreparando Tiro al Plato en 3s...", sequenceTotalScore, "🏆 CIRCUITO OLÍMPICO");
+                    sequenceTransitionRoutine = StartCoroutine(SequenceTransitionRoutine(ShootingDiscipline.ClayPigeonShotgun, 3.5f));
+                    return;
+                }
+                else if (activeDiscipline == ShootingDiscipline.ClayPigeonShotgun)
+                {
+                    isSequenceMode = false;
+                    string circuitMedal = sequenceTotalScore >= 200 ? "¡GRAN CAMPEÓN OLÍMPICO! 🥇 ORO" : (sequenceTotalScore >= 140 ? "¡SUBCAMPEÓN OLÍMPICO! 🥈 PLATA" : "¡BRONCE OLÍMPICO! 🥉");
+                    OnSeriesFinished?.Invoke($"¡CIRCUITO OLÍMPICO COMPLETADO!\nPUNTUACIÓN COMBINADA: {sequenceTotalScore} pts", sequenceTotalScore, circuitMedal);
+                    return;
+                }
+            }
 
             string disciplineName = activeDiscipline == ShootingDiscipline.OlympicRifleDistance ? "Rifle de Precisión"
                 : (activeDiscipline == ShootingDiscipline.DynamicPistolWall ? "Pistola Rápida" : "Tiro al Plato");

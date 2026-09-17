@@ -20,7 +20,7 @@ namespace Tiro.Editor
         private const string PauseMenuPrefabGuid = "fb0fc33f728c20c4da4e60734a5f1a43";
         private const string PistolPrefabPath = "Assets/03_Resources/Prefabs/Tiro/Olympic_Pistol_VR.prefab";
 
-        private const string SceneRebuiltKey = "ShootingScene_VR_Rebuilt_v3";
+        private const string SceneRebuiltKey = "ShootingScene_VR_Rebuilt_v4";
 
         [InitializeOnLoadMethod]
         private static void AutoBuildIfMissing()
@@ -232,7 +232,7 @@ namespace Tiro.Editor
 
             var soManager = new SerializedObject(manager);
             soManager.FindProperty("config").objectReferenceValue = rangeConfig;
-            soManager.FindProperty("activeDiscipline").enumValueIndex = (int)ShootingDiscipline.OlympicRifleDistance;
+            soManager.FindProperty("activeDiscipline").enumValueIndex = (int)ShootingDiscipline.DynamicPistolWall;
             soManager.FindProperty("rifle").objectReferenceValue = rifleComponent;
             soManager.FindProperty("pistol").objectReferenceValue = pistolComponent;
             soManager.FindProperty("shotgun").objectReferenceValue = shotgunComponent;
@@ -468,16 +468,30 @@ namespace Tiro.Editor
             muzzlePoint.transform.SetParent(pistolRoot.transform);
             muzzlePoint.transform.localPosition = new Vector3(0f, 0.045f, 0.155f);
 
-            // Display OLED de munición en la parte trasera de la corredera
-            GameObject ammoDisplayObj = new GameObject("AmmoDisplay");
-            ammoDisplayObj.transform.SetParent(slide.transform);
-            ammoDisplayObj.transform.localPosition = new Vector3(0f, 0.2f, -0.52f);
-            ammoDisplayObj.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-            var ammoTmp = ammoDisplayObj.AddComponent<TextMeshPro>();
-            ammoTmp.text = "10";
-            ammoTmp.fontSize = 1.1f;
+            // Display OLED micro-compacto en el lateral izquierdo del armazón (no estorba la mira)
+            GameObject ammoDisplayObj = new GameObject("Ammo_OLED_Side");
+            ammoDisplayObj.transform.SetParent(pistolRoot.transform, false);
+            ammoDisplayObj.transform.localPosition = new Vector3(-0.019f, 0.035f, 0.03f);
+            ammoDisplayObj.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+
+            GameObject bezel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            bezel.name = "Bezel";
+            bezel.transform.SetParent(ammoDisplayObj.transform, false);
+            bezel.transform.localPosition = Vector3.zero;
+            bezel.transform.localScale = new Vector3(0.038f, 0.016f, 0.002f);
+            if (matGun != null) bezel.GetComponent<Renderer>().material = matGun;
+
+            GameObject textObj = new GameObject("Text");
+            textObj.transform.SetParent(ammoDisplayObj.transform, false);
+            textObj.transform.localPosition = new Vector3(0f, 0f, -0.002f);
+            textObj.transform.localScale = Vector3.one * 0.01f;
+
+            var ammoTmp = textObj.AddComponent<TextMeshPro>();
             ammoTmp.alignment = TextAlignmentOptions.Center;
-            ammoTmp.color = Color.cyan;
+            ammoTmp.fontSize = 3.2f;
+            ammoTmp.fontStyle = FontStyles.Bold;
+            ammoTmp.color = new Color(0f, 1f, 0.85f, 1f);
+            ammoTmp.text = "10 / 10";
 
             // Limpieza de colliders redundantes
             foreach (var col in pistolRoot.GetComponentsInChildren<Collider>())
@@ -507,6 +521,7 @@ namespace Tiro.Editor
             so.FindProperty("rearSight").objectReferenceValue = rearSightAnchor.transform;
             so.FindProperty("slideTransform").objectReferenceValue = slide.transform;
             so.FindProperty("ammoText").objectReferenceValue = ammoTmp;
+            so.FindProperty("ammoCounterText").objectReferenceValue = ammoTmp;
             so.FindProperty("audioSource").objectReferenceValue = audioSource;
             so.FindProperty("bindToRightControllerOnStart").boolValue = true;
             so.FindProperty("gripOffset").vector3Value = new Vector3(0f, -0.025f, 0.08f);
@@ -758,18 +773,18 @@ namespace Tiro.Editor
             GameObject galleryRoot = new GameObject("Dynamic_Wall_Gallery");
             galleryRoot.transform.position = position;
 
-            // Muro panel posterior de absorción deportiva
+            // Muro panel posterior de absorción deportiva (front face at z = 0m)
             GameObject wallBoard = GameObject.CreatePrimitive(PrimitiveType.Cube);
             wallBoard.name = "Gallery_Backboard";
             wallBoard.transform.SetParent(galleryRoot.transform);
-            wallBoard.transform.localPosition = Vector3.zero;
+            wallBoard.transform.localPosition = new Vector3(0f, 0f, 0.06f);
             wallBoard.transform.localScale = new Vector3(4.6f, 2.9f, 0.12f);
             if (matWall != null) wallBoard.GetComponent<Renderer>().material = matWall;
 
             // Letrero superior de la galería
             GameObject headerObj = new GameObject("Gallery_Header");
             headerObj.transform.SetParent(galleryRoot.transform);
-            headerObj.transform.localPosition = new Vector3(0f, 1.25f, -0.07f);
+            headerObj.transform.localPosition = new Vector3(0f, 1.25f, -0.02f);
             var headerTmp = headerObj.AddComponent<TextMeshPro>();
             headerTmp.text = "PISTOLA RÁPIDA - GALERÍA REACTIVA";
             headerTmp.fontSize = 2.4f;
@@ -900,16 +915,17 @@ namespace Tiro.Editor
             activeTmp.alignment = TextAlignmentOptions.Center;
 
             // 3. Botones interactivos (con Button + BoxCollider para click o disparo)
-            Button btnRifle = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Rifle", new Vector2(0f, 250f), "🎯 1. RIFLE DE PRECISIÓN (10m - 25m - 50m)", new Color(0.12f, 0.24f, 0.38f), Color.cyan);
-            Button btnPistol = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Pistol", new Vector2(0f, 110f), "🔫 2. PISTOLA RÁPIDA (Pared Dinámica 60s)", new Color(0.12f, 0.34f, 0.22f), Color.green);
-            Button btnShotgun = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Shotgun", new Vector2(0f, -30f), "💥 3. TIRO AL PLATO (Escopeta Skeet / Trap)", new Color(0.38f, 0.22f, 0.12f), new Color(1f, 0.6f, 0.1f));
-            Button btnRestart = CreateMenuButton(canvasObj.transform, "Btn_Restart_Round", new Vector2(0f, -170f), "🔄 REINICIAR SERIE / RONDA", new Color(0.38f, 0.12f, 0.15f), Color.white);
+            Button btnSequence = CreateMenuButton(canvasObj.transform, "Btn_Circuit_Sequence", new Vector2(0f, 260f), "🏆 CIRCUITO OLÍMPICO (SECUENCIA COMPLETA)", new Color(0.38f, 0.28f, 0.05f), new Color(1f, 0.88f, 0.2f));
+            Button btnPistol = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Pistol", new Vector2(0f, 140f), "🔫 1. PISTOLA RÁPIDA (Pared Dinámica 60s)", new Color(0.12f, 0.34f, 0.22f), Color.green);
+            Button btnRifle = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Rifle", new Vector2(0f, 20f), "🎯 2. RIFLE DE PRECISIÓN (10m - 25m - 50m)", new Color(0.12f, 0.24f, 0.38f), Color.cyan);
+            Button btnShotgun = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Shotgun", new Vector2(0f, -100f), "💥 3. TIRO AL PLATO (Escopeta Skeet / Trap)", new Color(0.38f, 0.22f, 0.12f), new Color(1f, 0.6f, 0.1f));
+            Button btnRestart = CreateMenuButton(canvasObj.transform, "Btn_Restart_Round", new Vector2(0f, -220f), "🔄 REINICIAR SERIE / RONDA", new Color(0.38f, 0.12f, 0.15f), Color.white);
 
             // 4. Scoreboard de la serie actual
             GameObject scoreObj = new GameObject("ScoreBoardText");
             scoreObj.transform.SetParent(canvasObj.transform, false);
             var scoreTmp = scoreObj.AddComponent<TextMeshProUGUI>();
-            scoreTmp.rectTransform.anchoredPosition = new Vector2(0f, -320f);
+            scoreTmp.rectTransform.anchoredPosition = new Vector2(0f, -340f);
             scoreTmp.rectTransform.sizeDelta = new Vector2(920f, 100f);
             scoreTmp.text = "Puntos Ronda: <color=#FFD700>0</color>  |  Tiros: 0 / 10";
             scoreTmp.fontSize = 38;
@@ -919,7 +935,7 @@ namespace Tiro.Editor
             GameObject recordsObj = new GameObject("RecordsText");
             recordsObj.transform.SetParent(canvasObj.transform, false);
             var recordsTmp = recordsObj.AddComponent<TextMeshProUGUI>();
-            recordsTmp.rectTransform.anchoredPosition = new Vector2(0f, -440f);
+            recordsTmp.rectTransform.anchoredPosition = new Vector2(0f, -460f);
             recordsTmp.rectTransform.sizeDelta = new Vector2(950f, 110f);
             recordsTmp.text = "RÉCORDS:\n🎯 Rifle: 0 pts  |  🔫 Pistola: 0 pts  |  💥 Plato: 0 pts";
             recordsTmp.fontSize = 28;
@@ -936,6 +952,7 @@ namespace Tiro.Editor
             so.FindProperty("currentDisciplineText").objectReferenceValue = activeTmp;
             so.FindProperty("scoreBoardText").objectReferenceValue = scoreTmp;
             so.FindProperty("recordsText").objectReferenceValue = recordsTmp;
+            so.FindProperty("btnSequence").objectReferenceValue = btnSequence;
             so.FindProperty("btnRifle").objectReferenceValue = btnRifle;
             so.FindProperty("btnPistol").objectReferenceValue = btnPistol;
             so.FindProperty("btnShotgun").objectReferenceValue = btnShotgun;

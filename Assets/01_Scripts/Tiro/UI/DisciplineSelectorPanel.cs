@@ -26,6 +26,7 @@ namespace Tiro.UI
         [SerializeField] private TextMeshProUGUI recordsText;
 
         [Header("Buttons")]
+        [SerializeField] private Button btnSequence;
         [SerializeField] private Button btnRifle;
         [SerializeField] private Button btnPistol;
         [SerializeField] private Button btnShotgun;
@@ -52,6 +53,7 @@ namespace Tiro.UI
             }
 
             // Conectar botones UI
+            if (btnSequence != null) btnSequence.onClick.AddListener(OnStartSequence);
             if (btnRifle != null) btnRifle.onClick.AddListener(() => OnSelectDiscipline(ShootingDiscipline.OlympicRifleDistance));
             if (btnPistol != null) btnPistol.onClick.AddListener(() => OnSelectDiscipline(ShootingDiscipline.DynamicPistolWall));
             if (btnShotgun != null) btnShotgun.onClick.AddListener(() => OnSelectDiscipline(ShootingDiscipline.ClayPigeonShotgun));
@@ -68,6 +70,16 @@ namespace Tiro.UI
                 rangeManager.OnScoreUpdated -= HandleScoreUpdated;
                 rangeManager.OnSeriesFinished -= HandleSeriesFinished;
             }
+        }
+
+        public void OnStartSequence()
+        {
+            PlayClickSound();
+            if (rangeManager != null)
+            {
+                rangeManager.StartFullOlympicSequence();
+            }
+            UpdatePanelDisplay();
         }
 
         public void OnSelectDiscipline(ShootingDiscipline discipline)
@@ -108,7 +120,7 @@ namespace Tiro.UI
             UpdatePanelDisplay();
             if (scoreBoardText != null)
             {
-                scoreBoardText.text = $"{medal}\n<color=#FFD700>Puntuación Final: {finalScore} pts</color>";
+                scoreBoardText.text = $"{medal}\n<color=#FFD700>{message}</color>";
             }
         }
 
@@ -121,17 +133,24 @@ namespace Tiro.UI
 
             if (currentDisciplineText != null)
             {
-                switch (discipline)
+                if (rangeManager.IsSequenceMode)
                 {
-                    case ShootingDiscipline.OlympicRifleDistance:
-                        currentDisciplineText.text = "MODALIDAD: <color=#00E5FF>🎯 RIFLE DE PRECISIÓN (10m, 25m, 50m)</color>";
-                        break;
-                    case ShootingDiscipline.DynamicPistolWall:
-                        currentDisciplineText.text = "MODALIDAD: <color=#00FF66>🔫 PISTOLA RÁPIDA (Pared Reactiva)</color>";
-                        break;
-                    case ShootingDiscipline.ClayPigeonShotgun:
-                        currentDisciplineText.text = "MODALIDAD: <color=#FF8800>💥 TIRO AL PLATO (Escopeta Skeet)</color>";
-                        break;
+                    currentDisciplineText.text = "MODALIDAD: <color=#FFD700>🏆 CIRCUITO OLÍMPICO (SECUENCIA COMPLETA)</color>";
+                }
+                else
+                {
+                    switch (discipline)
+                    {
+                        case ShootingDiscipline.OlympicRifleDistance:
+                            currentDisciplineText.text = "MODALIDAD: <color=#00E5FF>🎯 RIFLE DE PRECISIÓN (10m, 25m, 50m)</color>";
+                            break;
+                        case ShootingDiscipline.DynamicPistolWall:
+                            currentDisciplineText.text = "MODALIDAD: <color=#00FF66>🔫 PISTOLA RÁPIDA (Pared Reactiva)</color>";
+                            break;
+                        case ShootingDiscipline.ClayPigeonShotgun:
+                            currentDisciplineText.text = "MODALIDAD: <color=#FF8800>💥 TIRO AL PLATO (Escopeta Skeet)</color>";
+                            break;
+                    }
                 }
             }
 
@@ -155,7 +174,8 @@ namespace Tiro.UI
         /// </summary>
         public void HandleShotOnButton(string buttonTag)
         {
-            if (buttonTag.Contains("rifle")) OnSelectDiscipline(ShootingDiscipline.OlympicRifleDistance);
+            if (buttonTag.Contains("sequence") || buttonTag.Contains("circuito") || buttonTag.Contains("torneo")) OnStartSequence();
+            else if (buttonTag.Contains("rifle")) OnSelectDiscipline(ShootingDiscipline.OlympicRifleDistance);
             else if (buttonTag.Contains("pistol")) OnSelectDiscipline(ShootingDiscipline.DynamicPistolWall);
             else if (buttonTag.Contains("shotgun") || buttonTag.Contains("clay")) OnSelectDiscipline(ShootingDiscipline.ClayPigeonShotgun);
             else if (buttonTag.Contains("restart")) OnRestartCurrentRound();

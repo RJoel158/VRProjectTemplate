@@ -47,7 +47,21 @@ namespace Tiro.Targets
 
         private void Awake()
         {
-            BuildTargetNodes();
+            // Detectar nodos existentes si ya fueron generados en la escena
+            var existingNodes = GetComponentsInChildren<DynamicTargetNode>(true);
+            if (existingNodes.Length > 0)
+            {
+                nodes.Clear();
+                nodes.AddRange(existingNodes);
+                foreach (var n in nodes)
+                {
+                    n.RefreshMaterials(matTargetActive, matTargetIdle, matBullseye);
+                }
+            }
+            else
+            {
+                BuildTargetNodes();
+            }
         }
 
         public void BuildTargetNodes()
@@ -61,38 +75,48 @@ namespace Tiro.Targets
             {
                 for (int c = 0; c < columns; c++)
                 {
-                    Vector3 localPos = new Vector3(startX + c * spacing.x, startY + r * spacing.y, -0.04f);
+                    // Situado en la superficie frontal de la pared (-0.015m)
+                    Vector3 localPos = new Vector3(startX + c * spacing.x, startY + r * spacing.y, -0.015f);
 
                     GameObject nodeObj = new GameObject($"TargetNode_R{r}_C{c}");
                     nodeObj.transform.SetParent(transform, false);
                     nodeObj.transform.localPosition = localPos;
 
-                    // Base circular de la diana
+                    // Base circular de la diana (disco exterior de 38cm)
                     GameObject disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                     disc.name = "TargetDisc";
                     disc.transform.SetParent(nodeObj.transform, false);
                     disc.transform.localPosition = Vector3.zero;
                     disc.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-                    disc.transform.localScale = new Vector3(0.35f, 0.015f, 0.35f);
+                    disc.transform.localScale = new Vector3(0.38f, 0.012f, 0.38f);
 
                     var col = disc.GetComponent<Collider>();
-                    if (col != null) Destroy(col);
+                    if (col != null) DestroyImmediate(col);
 
-                    // Centro Bullseye
+                    // Anillo de contraste exterior
+                    GameObject ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    ring.name = "ContrastRing";
+                    ring.transform.SetParent(disc.transform, false);
+                    ring.transform.localPosition = new Vector3(0f, 0.55f, 0f);
+                    ring.transform.localScale = new Vector3(0.65f, 0.15f, 0.65f);
+                    var rCol = ring.GetComponent<Collider>();
+                    if (rCol != null) DestroyImmediate(rCol);
+
+                    // Centro Bullseye de 12cm
                     GameObject bullseye = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                     bullseye.name = "BullseyeDisc";
                     bullseye.transform.SetParent(disc.transform, false);
-                    bullseye.transform.localPosition = new Vector3(0f, 0.6f, 0f);
-                    bullseye.transform.localScale = new Vector3(0.35f, 0.2f, 0.35f);
+                    bullseye.transform.localPosition = new Vector3(0f, 0.75f, 0f);
+                    bullseye.transform.localScale = new Vector3(0.28f, 0.25f, 0.28f);
                     var bCol = bullseye.GetComponent<Collider>();
-                    if (bCol != null) Destroy(bCol);
+                    if (bCol != null) DestroyImmediate(bCol);
 
                     // BoxCollider para raycast de impacto
                     var hitCol = nodeObj.AddComponent<BoxCollider>();
-                    hitCol.size = new Vector3(0.38f, 0.38f, 0.08f);
+                    hitCol.size = new Vector3(0.40f, 0.40f, 0.10f);
 
                     var node = nodeObj.AddComponent<DynamicTargetNode>();
-                    node.Initialize(this, disc.GetComponent<Renderer>(), bullseye.GetComponent<Renderer>(), matTargetActive, matTargetIdle, matBullseye);
+                    node.Initialize(this, disc.GetComponent<Renderer>(), ring.GetComponent<Renderer>(), bullseye.GetComponent<Renderer>(), matTargetActive, matTargetIdle, matBullseye);
 
                     nodes.Add(node);
                     node.SetDeactivated();
@@ -117,7 +141,7 @@ namespace Tiro.Targets
 
             foreach (var n in nodes)
             {
-                n.SetDeactivated();
+                if (n != null) n.SetDeactivated();
             }
         }
 
@@ -129,7 +153,9 @@ namespace Tiro.Targets
             targetsSpawned = 0;
             timeRemaining = roundDurationSeconds;
 
-            yield return new WaitForSeconds(0.8f);
+            yield return new WaitForSeconds(0.5f);
+
+            float nextSpawnTime = 0f;
 
             while (timeRemaining > 0f && isRoundRunning)
             {
@@ -137,20 +163,25 @@ namespace Tiro.Targets
                 OnTimerTick?.Invoke(Mathf.Max(0f, timeRemaining));
 
                 // Escalar dificultad según el tiempo transcurrido (0 a 1)
-                float progress = 1f - (timeRemaining / roundDurationSeconds);
+                float progress = 1f - Mathf.Clamp01(timeRemaining / roundDurationSeconds);
                 float currentExposure = Mathf.Lerp(initialTargetDuration, finalTargetDuration, progress);
-                float interval = Mathf.Lerp(1.6f, 0.65f, progress);
+                float interval = Mathf.Lerp(1.7f, 0.75f, progress);
 
-                // Activar una diana libre aleatoria
-                var availableNodes = nodes.FindAll(n => !n.IsActive);
-                if (availableNodes.Count > 0)
+                if (Time.time >= nextSpawnTime)
                 {
-                    var chosen = availableNodes[UnityEngine.Random.Range(0, availableNodes.Count)];
-                    chosen.ActivateTarget(currentExposure);
-                    targetsSpawned++;
+                    nextSpawnTime = Time.time + interval;
+
+                    // Activar una diana libre aleatoria
+                    var availableNodes = nodes.FindAll(n => n != null && !n.IsActive);
+                    if (availableNodes.Count > 0)
+                    {
+                        var chosen = availableNodes[UnityEngine.Random.Range(0, availableNodes.Count)];
+                        chosen.ActivateTarget(currentExposure);
+                        targetsSpawned++;
+                    }
                 }
 
-                yield return new WaitForSeconds(interval);
+                yield return null;
             }
 
             isRoundRunning = false;
@@ -185,6 +216,7 @@ namespace Tiro.Targets
     {
         private DynamicWallTargetGallery gallery;
         private Renderer discRenderer;
+        private Renderer ringRenderer;
         private Renderer bullseyeRenderer;
         private Material matActive;
         private Material matIdle;
@@ -192,17 +224,32 @@ namespace Tiro.Targets
 
         private Coroutine activeRoutine;
         private bool isActive = false;
+        private Vector3 baseLocalPos;
 
         public bool IsActive => isActive;
 
-        public void Initialize(DynamicWallTargetGallery g, Renderer disc, Renderer bullseye, Material active, Material idle, Material bMat)
+        public void Initialize(DynamicWallTargetGallery g, Renderer disc, Renderer ring, Renderer bullseye, Material active, Material idle, Material bMat)
         {
             gallery = g;
             discRenderer = disc;
+            ringRenderer = ring;
             bullseyeRenderer = bullseye;
             matActive = active;
             matIdle = idle;
             matBullseye = bMat;
+            baseLocalPos = new Vector3(transform.localPosition.x, transform.localPosition.y, -0.015f);
+        }
+
+        public void RefreshMaterials(Material active, Material idle, Material bMat)
+        {
+            matActive = active;
+            matIdle = idle;
+            matBullseye = bMat;
+            if (baseLocalPos == Vector3.zero)
+            {
+                baseLocalPos = new Vector3(transform.localPosition.x, transform.localPosition.y, -0.015f);
+            }
+            if (!isActive) SetDeactivated();
         }
 
         public void ActivateTarget(float duration)
@@ -216,15 +263,15 @@ namespace Tiro.Targets
             isActive = true;
             ApplyVisualState(true);
 
-            // Efecto de pop-up hacia adelante
-            Vector3 startPos = transform.localPosition;
-            Vector3 forwardPos = new Vector3(startPos.x, startPos.y, -0.15f);
+            // Efecto de pop-up hacia adelante (emerge 16cm hacia el tirador)
+            Vector3 startPos = baseLocalPos;
+            Vector3 forwardPos = new Vector3(baseLocalPos.x, baseLocalPos.y, -0.16f);
 
             float t = 0f;
-            while (t < 0.12f)
+            while (t < 0.10f)
             {
                 t += Time.deltaTime;
-                transform.localPosition = Vector3.Lerp(startPos, forwardPos, t / 0.12f);
+                transform.localPosition = Vector3.Lerp(startPos, forwardPos, t / 0.10f);
                 yield return null;
             }
             transform.localPosition = forwardPos;
@@ -246,6 +293,7 @@ namespace Tiro.Targets
             isActive = false;
             // Destello dorado de impacto
             if (discRenderer != null && matBullseye != null) discRenderer.material = matBullseye;
+            if (ringRenderer != null && matBullseye != null) ringRenderer.material = matBullseye;
             yield return new WaitForSeconds(0.08f);
             SetDeactivated();
         }
@@ -254,7 +302,7 @@ namespace Tiro.Targets
         {
             isActive = false;
             ApplyVisualState(false);
-            transform.localPosition = new Vector3(transform.localPosition.x, transform.localPosition.y, -0.02f);
+            transform.localPosition = baseLocalPos;
         }
 
         private void ApplyVisualState(bool active)
@@ -262,6 +310,10 @@ namespace Tiro.Targets
             if (discRenderer != null)
             {
                 discRenderer.material = active ? (matActive != null ? matActive : discRenderer.material) : (matIdle != null ? matIdle : discRenderer.material);
+            }
+            if (ringRenderer != null)
+            {
+                ringRenderer.material = active ? (matActive != null ? matActive : ringRenderer.material) : (matBullseye != null ? matBullseye : ringRenderer.material);
             }
             if (bullseyeRenderer != null)
             {
