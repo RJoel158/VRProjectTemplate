@@ -720,12 +720,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 51000001}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c62eba64224f493588913b892e07e75e, type: 3}
+  m_Script: {fileID: 11500000, guid: 6e4866c0ddcc4d3cb449cd1ca84dd13d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Esgrima.Combat::SwordGripHandler
-  gripAttachPoint: {fileID: 0}
-  gripEulerRotation: {x: -80, y: 0, z: 0}
-  gripLocalOffset: {x: 0, y: -0.03, z: 0.05}
+  m_EditorClassIdentifier: Esgrima.Combat::SwordDirectBind
+  localGripPosition: {x: 0, y: -0.035, z: 0.08}
+  bladeForwardAim: {x: 0, y: 0.18, z: 0.98}
+  rightHandTarget: {fileID: 0}
 --- !u!114 &51000009
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -993,10 +993,10 @@ Rigidbody:
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
   m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 112
+  m_CollisionDetection: 1
 --- !u!136 &60000004
 CapsuleCollider:
   m_ObjectHideFlags: 0
