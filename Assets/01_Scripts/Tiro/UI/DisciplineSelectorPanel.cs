@@ -39,6 +39,24 @@ namespace Tiro.UI
         private void Awake()
         {
             if (audioSource == null) audioSource = GetComponent<AudioSource>();
+            AlignToShooterView();
+        }
+
+        public void AlignToShooterView()
+        {
+            Vector3 menuPos = new Vector3(-1.35f, 1.35f, 0.95f);
+            transform.position = menuPos;
+
+            Vector3 lookTarget = new Vector3(0f, 1.45f, 0f);
+            Vector3 toPlayer = (lookTarget - menuPos).normalized;
+            transform.rotation = Quaternion.LookRotation(-toPlayer, Vector3.up);
+
+            var canvas = transform.Find("Station_Canvas");
+            if (canvas != null)
+            {
+                canvas.localPosition = new Vector3(0f, 0f, -0.045f);
+                canvas.localRotation = Quaternion.identity;
+            }
         }
 
         private void Start()

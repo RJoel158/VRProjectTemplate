@@ -43,6 +43,46 @@ namespace Tiro.Editor
             }
         }
 
+        [MenuItem("VR Sports/Tiro/Fix Menu Wall & Sync Targets")]
+        public static void FixMenuWallAndTargets()
+        {
+            // 1. Reposicionar y reorientar el panel de menú interactivo para que mire directamente al jugador
+            var kiosk = GameObject.Find("Discipline_Selector_Station");
+            if (kiosk != null)
+            {
+                Vector3 menuPos = new Vector3(-1.35f, 1.35f, 0.95f);
+                Vector3 lookTarget = new Vector3(0f, 1.45f, 0f);
+                Vector3 toPlayer = (lookTarget - menuPos).normalized;
+                Quaternion menuRot = Quaternion.LookRotation(-toPlayer, Vector3.up);
+
+                kiosk.transform.position = menuPos;
+                kiosk.transform.rotation = menuRot;
+
+                var canvas = kiosk.transform.Find("Station_Canvas");
+                if (canvas != null)
+                {
+                    canvas.localPosition = new Vector3(0f, 0f, -0.045f);
+                    canvas.localRotation = Quaternion.identity;
+                }
+                Debug.Log("[ShootingSceneBuilder] ¡Kiosco de selección reposicionado y orientado de frente hacia la vista del jugador!");
+            }
+
+            // 2. Re-sincronizar dianas reactivas
+            var gallery = Object.FindAnyObjectByType<DynamicWallTargetGallery>();
+            if (gallery != null)
+            {
+                gallery.SyncTargetNodes();
+                Debug.Log("[ShootingSceneBuilder] ¡Dianas reactivas sincronizadas con sistema de iluminación neón!");
+            }
+
+            var activeScene = EditorSceneManager.GetActiveScene();
+            if (activeScene.isLoaded)
+            {
+                EditorSceneManager.MarkSceneDirty(activeScene);
+                EditorSceneManager.SaveScene(activeScene);
+            }
+        }
+
         [MenuItem("VR Sports/Tiro/Build Shooting Scene")]
         public static void BuildScene()
         {
@@ -178,10 +218,15 @@ namespace Tiro.Editor
             shotgunObj.transform.position = new Vector3(-0.35f, 0.94f, 0.85f);
             OlympicShotgun shotgunComponent = shotgunObj.GetComponent<OlympicShotgun>();
 
-            // 8. Panel Menú Selector Interactivo en la pared izquierda
+            // 8. Panel Menú Selector Interactivo en la pared izquierda (orientado directamente hacia la vista del tirador)
+            Vector3 menuPos = new Vector3(-1.35f, 1.35f, 0.95f);
+            Vector3 lookTarget = new Vector3(0f, 1.45f, 0f);
+            Vector3 toPlayer = (lookTarget - menuPos).normalized;
+            Quaternion menuRot = Quaternion.LookRotation(-toPlayer, Vector3.up);
+
             GameObject menuWallObj = BuildDisciplineSelectorWall(
-                new Vector3(-1.75f, 1.4f, 1.1f),
-                Quaternion.Euler(0f, 40f, 0f),
+                menuPos,
+                menuRot,
                 matGunBlack,
                 matWood,
                 matSightGreen,
@@ -853,6 +898,7 @@ namespace Tiro.Editor
             GameObject canvasObj = new GameObject("Station_Canvas");
             canvasObj.transform.SetParent(wallRoot.transform);
             canvasObj.transform.localPosition = new Vector3(0f, 0f, -0.045f);
+            canvasObj.transform.localRotation = Quaternion.identity;
 
             Canvas canvas = canvasObj.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;

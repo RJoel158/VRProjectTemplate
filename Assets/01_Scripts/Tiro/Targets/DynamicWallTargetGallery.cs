@@ -28,7 +28,7 @@ namespace Tiro.Targets
         [SerializeField] private float initialTargetDuration = 2.4f;
         [SerializeField] private float finalTargetDuration = 0.85f;
 
-        private List<DynamicTargetNode> nodes = new List<DynamicTargetNode>();
+        [SerializeField] private List<DynamicTargetNode> nodes = new List<DynamicTargetNode>();
         private Coroutine roundCoroutine;
         private bool isRoundRunning = false;
         private int roundScore = 0;
@@ -47,7 +47,16 @@ namespace Tiro.Targets
 
         private void Awake()
         {
-            // Detectar nodos existentes si ya fueron generados en la escena
+            SyncTargetNodes();
+        }
+
+        private void OnEnable()
+        {
+            SyncTargetNodes();
+        }
+
+        public void SyncTargetNodes()
+        {
             var existingNodes = GetComponentsInChildren<DynamicTargetNode>(true);
             if (existingNodes.Length > 0)
             {
@@ -55,7 +64,11 @@ namespace Tiro.Targets
                 nodes.AddRange(existingNodes);
                 foreach (var n in nodes)
                 {
-                    n.RefreshMaterials(matTargetActive, matTargetIdle, matBullseye);
+                    if (n != null)
+                    {
+                        n.CacheComponents();
+                        n.RefreshMaterials(matTargetActive, matTargetIdle, matBullseye);
+                    }
                 }
             }
             else
@@ -66,7 +79,12 @@ namespace Tiro.Targets
 
         public void BuildTargetNodes()
         {
-            if (nodes.Count > 0) return;
+            nodes.Clear();
+            var oldNodes = GetComponentsInChildren<DynamicTargetNode>(true);
+            foreach (var on in oldNodes)
+            {
+                if (on != null) DestroyImmediate(on.gameObject);
+            }
 
             float startX = -((columns - 1) * spacing.x) * 0.5f;
             float startY = -((rows - 1) * spacing.y) * 0.5f;
@@ -75,7 +93,6 @@ namespace Tiro.Targets
             {
                 for (int c = 0; c < columns; c++)
                 {
-                    // Situado en la superficie frontal de la pared (-0.015m)
                     Vector3 localPos = new Vector3(startX + c * spacing.x, startY + r * spacing.y, -0.015f);
 
                     GameObject nodeObj = new GameObject($"TargetNode_R{r}_C{c}");
@@ -89,7 +106,6 @@ namespace Tiro.Targets
                     disc.transform.localPosition = Vector3.zero;
                     disc.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
                     disc.transform.localScale = new Vector3(0.38f, 0.012f, 0.38f);
-
                     var col = disc.GetComponent<Collider>();
                     if (col != null) DestroyImmediate(col);
 
@@ -153,7 +169,13 @@ namespace Tiro.Targets
             targetsSpawned = 0;
             timeRemaining = roundDurationSeconds;
 
-            yield return new WaitForSeconds(0.5f);
+            // Asegurar que todos inicien desactivados
+            foreach (var n in nodes)
+            {
+                if (n != null) n.SetDeactivated();
+            }
+
+            yield return new WaitForSeconds(0.4f);
 
             float nextSpawnTime = 0f;
 
@@ -162,16 +184,30 @@ namespace Tiro.Targets
                 timeRemaining -= Time.deltaTime;
                 OnTimerTick?.Invoke(Mathf.Max(0f, timeRemaining));
 
-                // Escalar dificultad según el tiempo transcurrido (0 a 1)
+                // Progreso de la ronda (0 a 1)
                 float progress = 1f - Mathf.Clamp01(timeRemaining / roundDurationSeconds);
-                float currentExposure = Mathf.Lerp(initialTargetDuration, finalTargetDuration, progress);
-                float interval = Mathf.Lerp(1.7f, 0.75f, progress);
 
-                if (Time.time >= nextSpawnTime)
+                // Dificultad escalada:
+                // Primeros ~25 segundos: 1 diana activa a la vez para máxima claridad
+                // Segundos 25 a 60: 2 dianas simultáneas
+                int targetActiveCount = progress > 0.40f ? 2 : 1;
+
+                // Duración de la diana activa antes de retraerse
+                float currentExposure = Mathf.Lerp(initialTargetDuration, finalTargetDuration, progress);
+                float interval = Mathf.Lerp(1.5f, 0.65f, progress);
+
+                // Contar cuántas están activas actualmente
+                int activeCount = 0;
+                for (int i = 0; i < nodes.Count; i++)
+                {
+                    if (nodes[i] != null && nodes[i].IsActive) activeCount++;
+                }
+
+                // Activar nueva diana si hay cupo disponible
+                if (activeCount < targetActiveCount && (Time.time >= nextSpawnTime || activeCount == 0))
                 {
                     nextSpawnTime = Time.time + interval;
 
-                    // Activar una diana libre aleatoria
                     var availableNodes = nodes.FindAll(n => n != null && !n.IsActive);
                     if (availableNodes.Count > 0)
                     {
@@ -185,6 +221,10 @@ namespace Tiro.Targets
             }
 
             isRoundRunning = false;
+            foreach (var n in nodes)
+            {
+                if (n != null) n.SetDeactivated();
+            }
             OnRoundFinished?.Invoke(roundScore, targetsHit, targetsSpawned);
         }
 
@@ -210,23 +250,61 @@ namespace Tiro.Targets
     }
 
     /// <summary>
-    /// Nodo individual de diana emergente.
+    /// Nodo individual de diana emergente ultrarreactiva.
+    /// En estado inactivo: gris apagado al ras de la pared.
+    /// En estado activo: salta hacia adelante e ilumina en verde neón radiante con centro rojo carmesí.
     /// </summary>
     public class DynamicTargetNode : MonoBehaviour
     {
-        private DynamicWallTargetGallery gallery;
-        private Renderer discRenderer;
-        private Renderer ringRenderer;
-        private Renderer bullseyeRenderer;
-        private Material matActive;
-        private Material matIdle;
-        private Material matBullseye;
+        [SerializeField] private DynamicWallTargetGallery gallery;
+        [SerializeField] private Renderer discRenderer;
+        [SerializeField] private Renderer ringRenderer;
+        [SerializeField] private Renderer bullseyeRenderer;
+        [SerializeField] private Material matActive;
+        [SerializeField] private Material matIdle;
+        [SerializeField] private Material matBullseye;
+        [SerializeField] private Vector3 baseLocalPos;
 
         private Coroutine activeRoutine;
         private bool isActive = false;
-        private Vector3 baseLocalPos;
+        private static MaterialPropertyBlock mpb;
+
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
 
         public bool IsActive => isActive;
+
+        private void Awake()
+        {
+            CacheComponents();
+        }
+
+        public void CacheComponents()
+        {
+            if (gallery == null) gallery = GetComponentInParent<DynamicWallTargetGallery>();
+
+            if (discRenderer == null)
+            {
+                var disc = transform.Find("TargetDisc");
+                if (disc != null) discRenderer = disc.GetComponent<Renderer>();
+            }
+            if (ringRenderer == null)
+            {
+                var ring = transform.Find("TargetDisc/ContrastRing");
+                if (ring != null) ringRenderer = ring.GetComponent<Renderer>();
+            }
+            if (bullseyeRenderer == null)
+            {
+                var bullseye = transform.Find("TargetDisc/BullseyeDisc");
+                if (bullseye != null) bullseyeRenderer = bullseye.GetComponent<Renderer>();
+            }
+
+            if (baseLocalPos == Vector3.zero)
+            {
+                baseLocalPos = new Vector3(transform.localPosition.x, transform.localPosition.y, -0.015f);
+            }
+        }
 
         public void Initialize(DynamicWallTargetGallery g, Renderer disc, Renderer ring, Renderer bullseye, Material active, Material idle, Material bMat)
         {
@@ -245,10 +323,7 @@ namespace Tiro.Targets
             matActive = active;
             matIdle = idle;
             matBullseye = bMat;
-            if (baseLocalPos == Vector3.zero)
-            {
-                baseLocalPos = new Vector3(transform.localPosition.x, transform.localPosition.y, -0.015f);
-            }
+            CacheComponents();
             if (!isActive) SetDeactivated();
         }
 
@@ -261,24 +336,25 @@ namespace Tiro.Targets
         private IEnumerator ActiveLifeRoutine(float duration)
         {
             isActive = true;
+            CacheComponents();
             ApplyVisualState(true);
 
-            // Efecto de pop-up hacia adelante (emerge 16cm hacia el tirador)
+            // Efecto de pop-up hacia adelante (emerge 18cm hacia el tirador)
             Vector3 startPos = baseLocalPos;
-            Vector3 forwardPos = new Vector3(baseLocalPos.x, baseLocalPos.y, -0.16f);
+            Vector3 forwardPos = new Vector3(baseLocalPos.x, baseLocalPos.y, -0.18f);
 
             float t = 0f;
-            while (t < 0.10f)
+            while (t < 0.09f)
             {
                 t += Time.deltaTime;
-                transform.localPosition = Vector3.Lerp(startPos, forwardPos, t / 0.10f);
+                transform.localPosition = Vector3.Lerp(startPos, forwardPos, t / 0.09f);
                 yield return null;
             }
             transform.localPosition = forwardPos;
 
             yield return new WaitForSeconds(duration);
 
-            // Retracción automática si no fue impactada
+            // Retracción automática si no fue impactada a tiempo
             SetDeactivated();
         }
 
@@ -291,34 +367,103 @@ namespace Tiro.Targets
         private IEnumerator FlashAndHideRoutine()
         {
             isActive = false;
-            // Destello dorado de impacto
-            if (discRenderer != null && matBullseye != null) discRenderer.material = matBullseye;
-            if (ringRenderer != null && matBullseye != null) ringRenderer.material = matBullseye;
+            // Destello dorado de impacto certero
+            if (mpb == null) mpb = new MaterialPropertyBlock();
+            Color goldHit = new Color(1f, 0.90f, 0.15f);
+            mpb.Clear();
+            mpb.SetColor(BaseColorId, goldHit);
+            mpb.SetColor(ColorId, goldHit);
+            mpb.SetColor(EmissionColorId, goldHit * 2.5f);
+
+            if (discRenderer != null) discRenderer.SetPropertyBlock(mpb);
+            if (ringRenderer != null) ringRenderer.SetPropertyBlock(mpb);
+            if (bullseyeRenderer != null) bullseyeRenderer.SetPropertyBlock(mpb);
+
             yield return new WaitForSeconds(0.08f);
             SetDeactivated();
         }
 
         public void SetDeactivated()
         {
+            if (activeRoutine != null)
+            {
+                StopCoroutine(activeRoutine);
+                activeRoutine = null;
+            }
             isActive = false;
+            CacheComponents();
             ApplyVisualState(false);
             transform.localPosition = baseLocalPos;
         }
 
         private void ApplyVisualState(bool active)
         {
-            if (discRenderer != null)
+            CacheComponents();
+            if (mpb == null) mpb = new MaterialPropertyBlock();
+
+            if (active)
             {
-                discRenderer.material = active ? (matActive != null ? matActive : discRenderer.material) : (matIdle != null ? matIdle : discRenderer.material);
+                // --- DIANA ACTIVA: VÍVIDA, ILUMINADA Y NEÓN DE ALTA VISIBILIDAD ---
+                if (discRenderer != null)
+                {
+                    Color neonGreen = new Color(0.12f, 1f, 0.28f);
+                    mpb.Clear();
+                    mpb.SetColor(BaseColorId, neonGreen);
+                    mpb.SetColor(ColorId, neonGreen);
+                    mpb.SetColor(EmissionColorId, neonGreen * 1.8f);
+                    discRenderer.SetPropertyBlock(mpb);
+                }
+                if (ringRenderer != null)
+                {
+                    Color brightWhite = Color.white;
+                    mpb.Clear();
+                    mpb.SetColor(BaseColorId, brightWhite);
+                    mpb.SetColor(ColorId, brightWhite);
+                    mpb.SetColor(EmissionColorId, brightWhite * 1.2f);
+                    ringRenderer.SetPropertyBlock(mpb);
+                }
+                if (bullseyeRenderer != null)
+                {
+                    Color hotCrimson = new Color(1f, 0.15f, 0.05f);
+                    mpb.Clear();
+                    mpb.SetColor(BaseColorId, hotCrimson);
+                    mpb.SetColor(ColorId, hotCrimson);
+                    mpb.SetColor(EmissionColorId, hotCrimson * 2.2f);
+                    bullseyeRenderer.SetPropertyBlock(mpb);
+                }
             }
-            if (ringRenderer != null)
+            else
             {
-                ringRenderer.material = active ? (matActive != null ? matActive : ringRenderer.material) : (matBullseye != null ? matBullseye : ringRenderer.material);
-            }
-            if (bullseyeRenderer != null)
-            {
-                bullseyeRenderer.material = active ? (matBullseye != null ? matBullseye : bullseyeRenderer.material) : (matIdle != null ? matIdle : bullseyeRenderer.material);
+                // --- DIANA INACTIVA: GRIS OSCURO APAGADO (REPOSO DISCRETO) ---
+                if (discRenderer != null)
+                {
+                    Color idleDisc = new Color(0.18f, 0.19f, 0.21f);
+                    mpb.Clear();
+                    mpb.SetColor(BaseColorId, idleDisc);
+                    mpb.SetColor(ColorId, idleDisc);
+                    mpb.SetColor(EmissionColorId, Color.black);
+                    discRenderer.SetPropertyBlock(mpb);
+                }
+                if (ringRenderer != null)
+                {
+                    Color idleRing = new Color(0.24f, 0.25f, 0.28f);
+                    mpb.Clear();
+                    mpb.SetColor(BaseColorId, idleRing);
+                    mpb.SetColor(ColorId, idleRing);
+                    mpb.SetColor(EmissionColorId, Color.black);
+                    ringRenderer.SetPropertyBlock(mpb);
+                }
+                if (bullseyeRenderer != null)
+                {
+                    Color idleBull = new Color(0.14f, 0.15f, 0.17f);
+                    mpb.Clear();
+                    mpb.SetColor(BaseColorId, idleBull);
+                    mpb.SetColor(ColorId, idleBull);
+                    mpb.SetColor(EmissionColorId, Color.black);
+                    bullseyeRenderer.SetPropertyBlock(mpb);
+                }
             }
         }
     }
 }
+
