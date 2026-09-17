@@ -20,3 +20,8 @@ MonoBehaviour:
   windupDuration: 0.9
   staggerDuration: 1.4
   blockChance: 0.4
+  moveSpeed: 1.2
+  strafeSpeed: 0.85
+  maxSafeArenaRadius: 3.6
+  comboChance: 0.5
+  parryVulnerabilityMultiplier: 2.8

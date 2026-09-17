@@ -32,5 +32,23 @@ namespace Esgrima.Data
         [Tooltip("Probabilidad (0 a 1) de que el bot intente bloquear cuando ve venir la espada del jugador.")]
         [Range(0f, 1f)]
         public float blockChance = 0.35f;
+
+        [Header("Arena Footwork & Movement")]
+        [Tooltip("Velocidad de desplazamiento por la arena (m/s).")]
+        public float moveSpeed = 1.2f;
+
+        [Tooltip("Velocidad de desplazamiento lateral (strafing).")]
+        public float strafeSpeed = 0.8f;
+
+        [Tooltip("Radio máximo seguro desde el centro del ring (el ring mide 5.0m).")]
+        public float maxSafeArenaRadius = 3.6f;
+
+        [Header("Combos & Parry Vulnerability")]
+        [Tooltip("Probabilidad de encadenar combos de múltiples estocadas.")]
+        [Range(0f, 1f)]
+        public float comboChance = 0.45f;
+
+        [Tooltip("Multiplicador de retroceso cuando el rival recibe un contragolpe durante el aturdimiento de parry.")]
+        public float parryVulnerabilityMultiplier = 2.8f;
     }
 }

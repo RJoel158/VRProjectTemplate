@@ -30,6 +30,7 @@ namespace Esgrima.UI
                 EsgrimaMatchManager.Instance.OnScoreChanged += UpdateScoreDisplay;
                 EsgrimaMatchManager.Instance.OnRoundStarted += HandleRoundStarted;
                 EsgrimaMatchManager.Instance.OnRoundEnded += HandleRoundEnded;
+                EsgrimaMatchManager.Instance.OnCombatBanner += HandleRoundEnded;
                 EsgrimaMatchManager.Instance.OnMatchEnded += HandleMatchEnded;
             }
 
@@ -43,6 +44,7 @@ namespace Esgrima.UI
                 EsgrimaMatchManager.Instance.OnScoreChanged -= UpdateScoreDisplay;
                 EsgrimaMatchManager.Instance.OnRoundStarted -= HandleRoundStarted;
                 EsgrimaMatchManager.Instance.OnRoundEnded -= HandleRoundEnded;
+                EsgrimaMatchManager.Instance.OnCombatBanner -= HandleRoundEnded;
                 EsgrimaMatchManager.Instance.OnMatchEnded -= HandleMatchEnded;
             }
         }

@@ -42,7 +42,13 @@ namespace Esgrima.Core
         public event Action<int, int> OnScoreChanged;
         public event Action<int> OnRoundStarted;
         public event Action<string> OnRoundEnded; // Mensaje de quién ganó el punto
+        public event Action<string> OnCombatBanner; // Mensajes temporales de combate (bloqueo/parry)
         public event Action<bool> OnMatchEnded;   // true = Ganó Jugador, false = Ganó IA
+
+        public void AnnounceCombatBanner(string message)
+        {
+            OnCombatBanner?.Invoke(message);
+        }
 
         private void Awake()
         {
@@ -185,7 +191,7 @@ namespace Esgrima.Core
         /// <summary>
         /// Registra un impacto asestado en combate (jugador o rival).
         /// </summary>
-        public void RegisterFighterHit(bool playerWasHit, float force)
+        public void RegisterFighterHit(bool playerWasHit, float force, bool wasParryCounter = false)
         {
             if (matchOver) return;
 
@@ -206,13 +212,15 @@ namespace Esgrima.Core
                 playerScore++;
                 if (currentSaveData != null) currentSaveData.totalHitsLanded++;
 
+                int points = wasParryCounter ? 150 : 50;
                 if (ScoreManager.Instance != null)
                 {
-                    ScoreManager.Instance.AddPoints(50);
+                    ScoreManager.Instance.AddPoints(points);
                 }
 
                 OnScoreChanged?.Invoke(playerScore, aiScore);
-                OnRoundEnded?.Invoke("¡Estocada válida! ¡Punto para ti!");
+                string msg = wasParryCounter ? "¡PARRY Y CONTRAATAQUE CRÍTICO!" : "¡Estocada válida! ¡Punto para ti!";
+                OnRoundEnded?.Invoke(msg);
 
                 int targetScore = matchConfig != null ? matchConfig.roundsToWin : 3;
                 if (playerScore >= targetScore)

@@ -73,6 +73,19 @@ namespace Esgrima.Combat
         public void TakeHit(Vector3 hitPoint, Vector3 hitDirection, float baseKnockback, AudioClip hitAudio = null)
         {
             float multiplier = fighterConfig != null ? fighterConfig.knockbackMultiplier : 1.0f;
+            bool wasParryCounter = false;
+
+            if (!isPlayer)
+            {
+                FencerAI ai = GetComponentInParent<FencerAI>();
+                if (ai != null && ai.IsStunned)
+                {
+                    wasParryCounter = true;
+                    float parryBonus = fighterConfig != null ? fighterConfig.parryVulnerabilityMultiplier : 2.8f;
+                    multiplier *= parryBonus;
+                }
+            }
+
             float finalForce = baseKnockback * multiplier;
 
             // Reproducir sonido
@@ -102,7 +115,7 @@ namespace Esgrima.Combat
             // Notificar al MatchManager para registrar el golpe y actualizar marcador
             if (EsgrimaMatchManager.Instance != null)
             {
-                EsgrimaMatchManager.Instance.RegisterFighterHit(isPlayer, finalForce);
+                EsgrimaMatchManager.Instance.RegisterFighterHit(isPlayer, finalForce, wasParryCounter);
             }
 
             OnHitTaken?.Invoke(hitPoint, finalForce);
