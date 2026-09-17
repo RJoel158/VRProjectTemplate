@@ -61,9 +61,25 @@ namespace Esgrima.Combat
             float dt = Time.deltaTime;
             if (dt > 0.0001f)
             {
-                Vector3 currentPos = bladeTip.position;
+                Vector3 currentPos = bladeTip != null ? bladeTip.position : transform.position;
                 currentBladeSpeed = (currentPos - lastTipPosition).magnitude / dt;
                 lastTipPosition = currentPos;
+            }
+
+            // Chequeo volumétrico activo de la hoja (garantiza impacto 100% confiable en VR)
+            CheckBladeOverlaps();
+        }
+
+        private void CheckBladeOverlaps()
+        {
+            Vector3 start = bladeBase != null ? bladeBase.position : transform.position;
+            Vector3 end = bladeTip != null ? bladeTip.position : transform.position + transform.up * 0.9f;
+            float radius = 0.12f;
+
+            Collider[] overlaps = Physics.OverlapCapsule(start, end, radius, ~0, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < overlaps.Length; i++)
+            {
+                HandleCollision(overlaps[i]);
             }
         }
 
@@ -130,11 +146,10 @@ namespace Esgrima.Combat
             // Cooldown de golpe para evitar registrar múltiples hits en una misma pasada
             if (Time.time - lastHitTimestamp < hitCooldown) return;
 
-            // Comprobar si el corte supera la velocidad mínima requerida
-            float minSpeed = (swordData != null) ? swordData.minSwingVelocity : 0.8f;
-            if (currentBladeSpeed < minSpeed)
+            // Para el jugador, cualquier estocada o swing causa impacto válido
+            float minSpeed = (swordData != null) ? swordData.minSwingVelocity : 0.05f;
+            if (currentBladeSpeed < minSpeed && !isPlayerSword)
             {
-                // Toque demasiado suave/lento, no cuenta como estocada
                 return;
             }
 
