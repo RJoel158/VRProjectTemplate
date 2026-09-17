@@ -14,6 +14,8 @@ namespace Tiro.Targets
         [Header("Launch Configuration")]
         [SerializeField] private Transform launchPoint;
         [SerializeField] private Material clayMaterial;
+        [SerializeField] private bool launchLeftToRight = true;
+        [SerializeField] private Vector3 leftBunkerOffset = new Vector3(-9.0f, 0.9f, 15f);
         [SerializeField] private float minLaunchSpeed = 16f;
         [SerializeField] private float maxLaunchSpeed = 22f;
         [SerializeField] private float minElevationAngle = 35f;
@@ -86,9 +88,28 @@ namespace Tiro.Targets
 
         public ClayPigeon LaunchSingleClay()
         {
-            Vector3 origin = launchPoint != null ? launchPoint.position : transform.position;
+            Vector3 origin;
+            Vector3 launchVelocity;
 
-            // Construir modelo procedural del plato (disco naranja de 22cm)
+            if (launchLeftToRight)
+            {
+                // Lanzamiento cruzado auténtico de Fosa / Skeet: vuela de izquierda a derecha frente al tirador
+                origin = new Vector3(leftBunkerOffset.x, leftBunkerOffset.y, leftBunkerOffset.z);
+                float vx = UnityEngine.Random.Range(14.5f, 18.5f); // Desplazamiento horizontal de izq a der
+                float vy = UnityEngine.Random.Range(7.5f, 10.5f);  // Arco parabólico alto en el cielo
+                float vz = UnityEngine.Random.Range(-0.8f, 1.8f);  // Ligera deriva en distancia
+                launchVelocity = new Vector3(vx, vy, vz);
+            }
+            else
+            {
+                origin = launchPoint != null ? launchPoint.position : transform.position;
+                float elevation = UnityEngine.Random.Range(minElevationAngle, maxElevationAngle);
+                float azimuth = UnityEngine.Random.Range(minAzimuthAngle, maxAzimuthAngle);
+                Quaternion launchRot = Quaternion.Euler(-elevation, azimuth, 0f);
+                launchVelocity = (launchRot * Vector3.forward) * UnityEngine.Random.Range(minLaunchSpeed, maxLaunchSpeed);
+            }
+
+            // Construir modelo procedural del plato (disco naranja fluorescente de 24cm)
             GameObject clayObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             clayObj.name = $"ClayPigeon_{claysLaunched + 1}";
             clayObj.transform.position = origin;
@@ -114,13 +135,6 @@ namespace Tiro.Targets
             var rb = clayObj.AddComponent<Rigidbody>();
             rb.mass = 0.12f;
             rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-
-            // Ángulo de lanzamiento parabólico
-            float elevation = UnityEngine.Random.Range(minElevationAngle, maxElevationAngle);
-            float azimuth = UnityEngine.Random.Range(minAzimuthAngle, maxAzimuthAngle);
-            Quaternion launchRot = Quaternion.Euler(-elevation, azimuth, 0f);
-            Vector3 launchVelocity = (launchRot * Vector3.forward) * UnityEngine.Random.Range(minLaunchSpeed, maxLaunchSpeed);
-
             rb.linearVelocity = launchVelocity;
             rb.angularVelocity = new Vector3(0f, 35f, 0f); // Giro estabilizador tipo frisbee
 

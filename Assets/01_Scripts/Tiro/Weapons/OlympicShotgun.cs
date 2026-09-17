@@ -22,11 +22,13 @@ namespace Tiro.Weapons
         [Header("Double Barrel & Sight")]
         [SerializeField] private Transform muzzlePoint;
         [SerializeField] private Transform frontBeadSight;
+        [SerializeField] private Transform rearSight;
 
         [Header("Pellet Ballistics")]
-        [SerializeField] private int pelletCount = 12;
-        [SerializeField] private float spreadAngleDegrees = 3.5f;
+        [SerializeField] private int pelletCount = 18;
+        [SerializeField] private float spreadAngleDegrees = 4.2f;
         [SerializeField] private float maxRange = 90f;
+        [SerializeField] private float pelletHitRadius = 0.14f;
 
         [Header("Ammo (2 Shells)")]
         [SerializeField] private TextMeshPro ammoText;
@@ -257,22 +259,24 @@ namespace Tiro.Weapons
             Vector3 origin = muzzlePoint != null ? muzzlePoint.position : transform.position;
             Vector3 baseDir = muzzlePoint != null ? muzzlePoint.forward : transform.forward;
 
-            if (frontBeadSight != null)
+            if (frontBeadSight != null && rearSight != null)
             {
-                baseDir = (frontBeadSight.position - origin).normalized;
-                if (baseDir == Vector3.zero) baseDir = transform.forward;
+                baseDir = (frontBeadSight.position - rearSight.position).normalized;
             }
+            if (baseDir == Vector3.zero) baseDir = transform.forward;
 
-            // Disparo cónico de perdigones
+            // Disparo cónico de múltiples perdigones con radio de impacto SphereCast
+            bool staticTargetHit = false;
             for (int i = 0; i < pelletCount; i++)
             {
-                // Dispersión aleatoria dentro del cono
+                // Dispersión cónica aleatoria
                 Vector2 randomCircle = UnityEngine.Random.insideUnitCircle * Mathf.Tan(spreadAngleDegrees * Mathf.Deg2Rad);
                 Vector3 pelletDir = (baseDir + transform.right * randomCircle.x + transform.up * randomCircle.y).normalized;
 
                 Vector3 hitPoint = origin + pelletDir * maxRange;
 
-                if (Physics.Raycast(origin, pelletDir, out RaycastHit hit, maxRange, ~0, QueryTriggerInteraction.Collide))
+                // SphereCast con radio de 14cm para emular la nube real de perdigones
+                if (Physics.SphereCast(origin, pelletHitRadius, pelletDir, out RaycastHit hit, maxRange, ~0, QueryTriggerInteraction.Collide))
                 {
                     hitPoint = hit.point;
 
@@ -285,28 +289,31 @@ namespace Tiro.Weapons
 
                     // 2. Impacto a diana convencional
                     var target = hit.collider.GetComponentInParent<TargetBoard>();
-                    if (target != null)
+                    if (target != null && !staticTargetHit)
                     {
+                        staticTargetHit = true;
                         target.RegisterBulletHit(hit.point, hit.normal);
                     }
 
                     // 3. Impacto a galería reactiva de pared
                     var wallNode = hit.collider.GetComponentInParent<DynamicTargetNode>();
-                    if (wallNode != null)
+                    if (wallNode != null && !staticTargetHit)
                     {
+                        staticTargetHit = true;
                         var gallery = wallNode.GetComponentInParent<DynamicWallTargetGallery>();
                         if (gallery != null) gallery.RegisterNodeHit(wallNode, hit.point);
                     }
 
                     // 4. Impacto a botones del panel de menú
                     var selector = hit.collider.GetComponentInParent<Tiro.UI.DisciplineSelectorPanel>();
-                    if (selector != null)
+                    if (selector != null && !staticTargetHit)
                     {
+                        staticTargetHit = true;
                         selector.HandleShotOnButton(hit.collider.name.ToLower());
                     }
                 }
 
-                if (i % 2 == 0) // Renderizar trazadores para la mitad de perdigones para optimizar
+                if (i % 2 == 0) // Renderizar trazadores visuales de perdigones
                 {
                     StartCoroutine(RenderPelletTracer(origin, hitPoint));
                 }

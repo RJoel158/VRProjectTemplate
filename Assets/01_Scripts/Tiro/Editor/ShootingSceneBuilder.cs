@@ -75,6 +75,16 @@ namespace Tiro.Editor
                 Debug.Log("[ShootingSceneBuilder] ¡Dianas reactivas sincronizadas con sistema de iluminación neón!");
             }
 
+            // 3. Re-sincronizar lanzador de platos
+            var launcher = Object.FindAnyObjectByType<ClayPigeonLauncher>();
+            if (launcher != null)
+            {
+                var soL = new SerializedObject(launcher);
+                soL.FindProperty("launchLeftToRight").boolValue = true;
+                soL.ApplyModifiedProperties();
+                Debug.Log("[ShootingSceneBuilder] ¡Lanzador de platos configurado en trayectoria cruzada de izquierda a derecha!");
+            }
+
             var activeScene = EditorSceneManager.GetActiveScene();
             if (activeScene.isLoaded)
             {
@@ -601,46 +611,75 @@ namespace Tiro.Editor
             triggerGuard.transform.localScale = new Vector3(0.022f, 0.038f, 0.06f);
             if (matGun != null) triggerGuard.GetComponent<Renderer>().material = matGun;
 
-            // --- SISTEMA DE PUNTERÍA OLÍMPICA CON DIÓPTER ---
-            // 1. Alza Trasera de Diópter (Micro-aperture Diopter Sight)
-            GameObject diopterHousing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            diopterHousing.name = "Diopter_Housing";
-            diopterHousing.transform.SetParent(rifleRoot.transform);
-            diopterHousing.transform.localPosition = new Vector3(0f, 0.065f, -0.08f);
-            diopterHousing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            diopterHousing.transform.localScale = new Vector3(0.032f, 0.008f, 0.032f);
-            if (matGun != null) diopterHousing.GetComponent<Renderer>().material = matGun;
+            // --- SISTEMA DE PUNTERÍA DE PRECISIÓN DE ALTA VISIBILIDAD (OPEN NOTCH & NEON BEAD) ---
+            // 1. Alza Trasera Abierta (Rear Notch Sight)
+            GameObject rearSightBase = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rearSightBase.name = "Rear_Sight_Base";
+            rearSightBase.transform.SetParent(rifleRoot.transform);
+            rearSightBase.transform.localPosition = new Vector3(0f, 0.052f, -0.06f);
+            rearSightBase.transform.localScale = new Vector3(0.026f, 0.008f, 0.010f);
+            if (matGun != null) rearSightBase.GetComponent<Renderer>().material = matGun;
 
+            // Poste izquierdo del alza con fibra óptica verde neón
+            GameObject rearLeftPost = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rearLeftPost.name = "Rear_Left_Post";
+            rearLeftPost.transform.SetParent(rearSightBase.transform);
+            rearLeftPost.transform.localPosition = new Vector3(-0.38f, 0.85f, 0f);
+            rearLeftPost.transform.localScale = new Vector3(0.24f, 1.0f, 0.9f);
+            if (matSightGreen != null) rearLeftPost.GetComponent<Renderer>().material = matSightGreen;
+
+            // Poste derecho del alza con fibra óptica verde neón
+            GameObject rearRightPost = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rearRightPost.name = "Rear_Right_Post";
+            rearRightPost.transform.SetParent(rearSightBase.transform);
+            rearRightPost.transform.localPosition = new Vector3(0.38f, 0.85f, 0f);
+            rearRightPost.transform.localScale = new Vector3(0.24f, 1.0f, 0.9f);
+            if (matSightGreen != null) rearRightPost.GetComponent<Renderer>().material = matSightGreen;
+
+            // Ventana central (Notch) limpia y abierta para ver a través de ella
             GameObject rearDiopterAnchor = new GameObject("Rear_Diopter_Anchor");
             rearDiopterAnchor.transform.SetParent(rifleRoot.transform);
-            rearDiopterAnchor.transform.localPosition = new Vector3(0f, 0.065f, -0.08f);
+            rearDiopterAnchor.transform.localPosition = new Vector3(0f, 0.059f, -0.06f);
 
-            // 2. Túnel Frontal de Mira (Globe Front Sight)
-            GameObject globeTunnel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            globeTunnel.name = "Front_Globe_Tunnel";
-            globeTunnel.transform.SetParent(rifleRoot.transform);
-            globeTunnel.transform.localPosition = new Vector3(0f, 0.065f, 0.68f);
-            globeTunnel.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            globeTunnel.transform.localScale = new Vector3(0.026f, 0.022f, 0.026f);
-            if (matGun != null) globeTunnel.GetComponent<Renderer>().material = matGun;
+            // 2. Poste Delantero Fino con Punto Óptico Naranja Radiante (Front Sight Post)
+            GameObject frontSightPost = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            frontSightPost.name = "Front_Sight_Post";
+            frontSightPost.transform.SetParent(rifleRoot.transform);
+            frontSightPost.transform.localPosition = new Vector3(0f, 0.054f, 0.68f);
+            frontSightPost.transform.localScale = new Vector3(0.003f, 0.014f, 0.006f);
+            if (matGun != null) frontSightPost.GetComponent<Renderer>().material = matGun;
+
+            GameObject frontBead = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            frontBead.name = "Front_Optic_Bead";
+            frontBead.transform.SetParent(frontSightPost.transform);
+            frontBead.transform.localPosition = new Vector3(0f, 0.55f, 0f);
+            frontBead.transform.localScale = new Vector3(1.8f, 0.45f, 1.2f);
+            if (matSightOrange != null) frontBead.GetComponent<Renderer>().material = matSightOrange;
 
             GameObject frontSightAnchor = new GameObject("Front_Sight_Anchor");
             frontSightAnchor.transform.SetParent(rifleRoot.transform);
-            frontSightAnchor.transform.localPosition = new Vector3(0f, 0.065f, 0.68f);
+            frontSightAnchor.transform.localPosition = new Vector3(0f, 0.061f, 0.68f);
 
             // 3. Boca del cañón (Muzzle Point)
             GameObject muzzlePoint = new GameObject("Muzzle_Point");
             muzzlePoint.transform.SetParent(rifleRoot.transform);
             muzzlePoint.transform.localPosition = new Vector3(0f, 0.035f, 0.72f);
 
-            // Pantalla OLED de munición sobre el cajón de mecanismos
+            // 4. Micro-Display OLED lateral compacto (en el costado izquierdo del cajón de mecanismos)
+            GameObject ammoBezel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ammoBezel.name = "OLED_Bezel";
+            ammoBezel.transform.SetParent(rifleRoot.transform);
+            ammoBezel.transform.localPosition = new Vector3(-0.021f, 0.028f, 0.02f);
+            ammoBezel.transform.localScale = new Vector3(0.003f, 0.016f, 0.038f);
+            if (matGun != null) ammoBezel.GetComponent<Renderer>().material = matGun;
+
             GameObject ammoDisplayObj = new GameObject("AmmoDisplay");
-            ammoDisplayObj.transform.SetParent(receiver.transform);
-            ammoDisplayObj.transform.localPosition = new Vector3(0f, 0.52f, -0.15f);
-            ammoDisplayObj.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            ammoDisplayObj.transform.SetParent(rifleRoot.transform);
+            ammoDisplayObj.transform.localPosition = new Vector3(-0.023f, 0.028f, 0.02f);
+            ammoDisplayObj.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
             var ammoTmp = ammoDisplayObj.AddComponent<TextMeshPro>();
             ammoTmp.text = "10";
-            ammoTmp.fontSize = 1.0f;
+            ammoTmp.fontSize = 0.38f;
             ammoTmp.alignment = TextAlignmentOptions.Center;
             ammoTmp.color = Color.cyan;
 
@@ -724,29 +763,44 @@ namespace Tiro.Editor
             buttstock.transform.localScale = new Vector3(0.040f, 0.125f, 0.30f);
             if (matWood != null) buttstock.GetComponent<Renderer>().material = matWood;
 
-            // Punto de mira de bola (Brass Bead Sight)
+            // 1. Alza Trasera de Escopeta (Rear Sight Notch)
+            GameObject rearSight = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rearSight.name = "Shotgun_Rear_Sight";
+            rearSight.transform.SetParent(shotgunRoot.transform);
+            rearSight.transform.localPosition = new Vector3(0f, 0.054f, 0.05f);
+            rearSight.transform.localScale = new Vector3(0.016f, 0.008f, 0.010f);
+            if (matGun != null) rearSight.GetComponent<Renderer>().material = matGun;
+
+            // 2. Punto de mira de bola delantero (Brass Bead Sight)
             GameObject beadSight = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             beadSight.name = "Bead_Sight_Gold";
             beadSight.transform.SetParent(shotgunRoot.transform);
-            beadSight.transform.localPosition = new Vector3(0f, 0.053f, 0.71f);
+            beadSight.transform.localPosition = new Vector3(0f, 0.053f, 0.70f);
             beadSight.transform.localScale = new Vector3(0.008f, 0.008f, 0.008f);
             if (matGold != null) beadSight.GetComponent<Renderer>().material = matGold;
 
-            // Boca del cañón (Muzzle Point)
+            // 3. Boca del cañón (Muzzle Point)
             GameObject muzzlePoint = new GameObject("Muzzle_Point");
             muzzlePoint.transform.SetParent(shotgunRoot.transform);
             muzzlePoint.transform.localPosition = new Vector3(0f, 0.025f, 0.72f);
 
-            // Display de cartuchos
+            // 4. Micro-Display OLED lateral compacto (costado izquierdo, deja la mira 100% despejada)
+            GameObject ammoBezel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ammoBezel.name = "OLED_Bezel";
+            ammoBezel.transform.SetParent(shotgunRoot.transform);
+            ammoBezel.transform.localPosition = new Vector3(-0.023f, 0.025f, 0.02f);
+            ammoBezel.transform.localScale = new Vector3(0.003f, 0.016f, 0.034f);
+            if (matGun != null) ammoBezel.GetComponent<Renderer>().material = matGun;
+
             GameObject ammoDisplayObj = new GameObject("AmmoDisplay");
-            ammoDisplayObj.transform.SetParent(receiver.transform);
-            ammoDisplayObj.transform.localPosition = new Vector3(0f, 0.52f, -0.2f);
-            ammoDisplayObj.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            ammoDisplayObj.transform.SetParent(shotgunRoot.transform);
+            ammoDisplayObj.transform.localPosition = new Vector3(-0.025f, 0.025f, 0.02f);
+            ammoDisplayObj.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
             var ammoTmp = ammoDisplayObj.AddComponent<TextMeshPro>();
             ammoTmp.text = "2 / 2";
-            ammoTmp.fontSize = 0.95f;
+            ammoTmp.fontSize = 0.38f;
             ammoTmp.alignment = TextAlignmentOptions.Center;
-            ammoTmp.color = new Color(1f, 0.6f, 0f);
+            ammoTmp.color = new Color(1f, 0.65f, 0.1f);
 
             // Limpieza de colliders redundantes
             foreach (var col in shotgunRoot.GetComponentsInChildren<Collider>())
@@ -772,10 +826,12 @@ namespace Tiro.Editor
             so.FindProperty("shotgunData").objectReferenceValue = shotgunData;
             so.FindProperty("muzzlePoint").objectReferenceValue = muzzlePoint.transform;
             so.FindProperty("frontBeadSight").objectReferenceValue = beadSight.transform;
+            so.FindProperty("rearSight").objectReferenceValue = rearSight.transform;
             so.FindProperty("ammoText").objectReferenceValue = ammoTmp;
             so.FindProperty("audioSource").objectReferenceValue = audioSource;
-            so.FindProperty("pelletCount").intValue = 12;
-            so.FindProperty("spreadAngleDegrees").floatValue = 3.2f;
+            so.FindProperty("pelletCount").intValue = 18;
+            so.FindProperty("spreadAngleDegrees").floatValue = 4.2f;
+            so.FindProperty("pelletHitRadius").floatValue = 0.14f;
             so.FindProperty("gripOffset").vector3Value = new Vector3(0f, -0.04f, 0.12f);
             so.FindProperty("gripEulerAngles").vector3Value = Vector3.zero;
             so.ApplyModifiedProperties();
