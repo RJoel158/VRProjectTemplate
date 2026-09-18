@@ -6,6 +6,7 @@ using UnityEngine.InputSystem;
 using TMPro;
 using Tiro.Data;
 using Tiro.Targets;
+using Tiro.Audio;
 
 namespace Tiro.Weapons
 {
