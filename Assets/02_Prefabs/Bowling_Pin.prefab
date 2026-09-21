@@ -154,3 +154,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PinFallDetector
   fallAngleThreshold: 45
+  floatingIconPrefab: {fileID: 4763094401683741013, guid: ddf74b69266a0034093cde88fae51855, type: 3}
+  iconSpawnOffset: {x: 0, y: 0.5, z: 0}
