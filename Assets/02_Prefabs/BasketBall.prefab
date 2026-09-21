@@ -88,6 +88,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 7a3c78d6c108142468dc985d13b2af24, type: 3}
       insertIndex: -1
       addedObject: {fileID: 414197748304083016}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 7a3c78d6c108142468dc985d13b2af24, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -7239775152131237891}
   m_SourcePrefab: {fileID: 100100000, guid: 7a3c78d6c108142468dc985d13b2af24, type: 3}
 --- !u!1 &7830045361924077821 stripped
 GameObject:
@@ -286,3 +289,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallRespawner
   velocityThreshold: 0.1
   settleTimeBeforeRespawn: 2.5
+--- !u!114 &-7239775152131237891
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7830045361924077821}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a089918851ca0040a4994f7fbd5e105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallFloorBounceSound
+  audioSource: {fileID: 0}
+  floorBounceSound: {fileID: 8300000, guid: 0f751ab6a18644642875acb8a7c2f35b, type: 3}
+  floorTag: Floor
+  minTimeBetweenSounds: 0.15

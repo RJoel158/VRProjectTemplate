@@ -8,6 +8,7 @@ TagManager:
   - Basketball
   - BowlingPin
   - BowlingBall
+  - Floor
   layers:
   - Default
   - TransparentFX
