@@ -795,14 +795,6 @@ MonoBehaviour:
   m_Script: {fileID: 64527584}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tiro.Targets.DynamicTargetNode
-  gallery: {fileID: 1640031853}
-  discRenderer: {fileID: 525593067}
-  ringRenderer: {fileID: 1431294784}
-  bullseyeRenderer: {fileID: 1627647668}
-  matActive: {fileID: 2100000, guid: f20c1516eb1f4b52970ff5af106e539f, type: 2}
-  matIdle: {fileID: 2100000, guid: fab59f16e9124d66b33e1f5aa32c2501, type: 2}
-  matBullseye: {fileID: 2100000, guid: 15c18682d4cf492ebbbe1d22c708ae0a, type: 2}
-  baseLocalPos: {x: 0.45000005, y: -0.7, z: -0.015}
 --- !u!65 &45233719
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -6230,7 +6222,7 @@ Transform:
   m_GameObject: {fileID: 753748009}
   serializedVersion: 2
   m_LocalRotation: {x: 0.026846241, y: -0.46049878, z: 0.013935336, w: 0.8871448}
-  m_LocalPosition: {x: -1.35, y: 1.35, z: 0.95}
+  m_LocalPosition: {x: -3.41, y: 1.27, z: 0.28}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
