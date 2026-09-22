@@ -15,7 +15,7 @@ MonoBehaviour:
   swordName: Espada Dorada de Jugador
   knockbackImpulse: 0.8
   damage: 1
-  minSwingVelocity: 0.05
+  minSwingVelocity: 0.2
   hapticIntensity: 0.85
   hapticDurationSeconds: 0.15
   clashSound: {fileID: 8300000, guid: ef85375d0b98eb64b971a812df665a0b, type: 3}

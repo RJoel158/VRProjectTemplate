@@ -1196,7 +1196,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8ceb6117a865f9a4e8df1cb3f67f8e44, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 73b6542fab88e2b43a3cc32e22704ed0, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2485,7 +2485,7 @@ GameObject:
   - component: {fileID: 1100638118}
   - component: {fileID: 1100638117}
   m_Layer: 5
-  m_Name: BowlingButton (1)
+  m_Name: ShootingScene
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2525,7 +2525,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ef1afb7b5053014bb5b9270381f13ce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MinigameTile
-  data: {fileID: 11400000, guid: 03e2c072aae89324d9547c55e81ec8a2, type: 2}
+  data: {fileID: 11400000, guid: d199814c0f3943969fa9be4c285f1e16, type: 2}
   artworkImage: {fileID: 1930123259}
   label: {fileID: 0}
 --- !u!114 &1100638118
@@ -2594,7 +2594,7 @@ MonoBehaviour:
         m_MethodName: SelectMinigame
         m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 11400000, guid: 03e2c072aae89324d9547c55e81ec8a2, type: 2}
+          m_ObjectArgument: {fileID: 11400000, guid: d199814c0f3943969fa9be4c285f1e16, type: 2}
           m_ObjectArgumentAssemblyTypeName: MinigameData, Assembly-CSharp
           m_IntArgument: 0
           m_FloatArgument: 0
@@ -3061,7 +3061,7 @@ GameObject:
   - component: {fileID: 1301733936}
   - component: {fileID: 1301733935}
   m_Layer: 5
-  m_Name: BowlingButton (2)
+  m_Name: FightingButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3101,7 +3101,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ef1afb7b5053014bb5b9270381f13ce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MinigameTile
-  data: {fileID: 11400000, guid: 03e2c072aae89324d9547c55e81ec8a2, type: 2}
+  data: {fileID: 11400000, guid: b5de7079f69ad924886245dabea54c80, type: 2}
   artworkImage: {fileID: 321152465}
   label: {fileID: 0}
 --- !u!114 &1301733936
@@ -3170,7 +3170,7 @@ MonoBehaviour:
         m_MethodName: SelectMinigame
         m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 11400000, guid: 03e2c072aae89324d9547c55e81ec8a2, type: 2}
+          m_ObjectArgument: {fileID: 11400000, guid: b5de7079f69ad924886245dabea54c80, type: 2}
           m_ObjectArgumentAssemblyTypeName: MinigameData, Assembly-CSharp
           m_IntArgument: 0
           m_FloatArgument: 0
@@ -4497,7 +4497,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8ceb6117a865f9a4e8df1cb3f67f8e44, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 108c84e5e23a80247a6304537e4e5075, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

@@ -13,9 +13,12 @@ MonoBehaviour:
   m_Name: SwordFightingMode
   m_EditorClassIdentifier: Assembly-CSharp::MinigameData
   sportName: Esgrima
-  description: Duelo de espadas en la plataforma circular al estilo Wii Sports Resort. Golpea, bloquea y haz retroceder a tu rival hasta tirarlo del ring.
-  icon: {fileID: 0}
+  description: Duelo de espadas en la plataforma circular al estilo Wii Sports Resort.
+    Golpea, bloquea y haz retroceder a tu rival hasta tirarlo del ring.
+  icon: {fileID: 21300000, guid: 73b6542fab88e2b43a3cc32e22704ed0, type: 3}
   sceneName: SwordScene
   timeLimitSeconds: 90
   targetScoreToWin: 3
-  instructionsText: Empu\xF1a la espada con tu mando de Oculus Quest. Golpea con decisi\xF3n al rival para empujarlo hacia el borde. Cruza espadas para bloquear sus ataques y hazlo caer al agua para ganar.
+  instructionsText: Empu\xF1a la espada con tu mando de Oculus Quest. Golpea con
+    decisi\xF3n al rival para empujarlo hacia el borde. Cruza espadas para bloquear
+    sus ataques y hazlo caer al agua para ganar.

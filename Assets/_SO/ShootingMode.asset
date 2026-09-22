@@ -13,9 +13,14 @@ MonoBehaviour:
   m_Name: ShootingMode
   m_EditorClassIdentifier: Assembly-CSharp::MinigameData
   sportName: Tiro Deportivo
-  description: "Tiro ol\xEDmpico de precisi\xF3n con pistola y mira de hierro estilo Pistol Whip. Alinea el alza trasera y el punto delantero para lograr tiros certeros a 10m, 25m y 50m."
-  icon: {fileID: 0}
+  description: "Tiro ol\xEDmpico de precisi\xF3n con pistola y mira de hierro estilo
+    Pistol Whip. Alinea el alza trasera y el punto delantero para lograr tiros certeros
+    a 10m, 25m y 50m."
+  icon: {fileID: 21300000, guid: 108c84e5e23a80247a6304537e4e5075, type: 3}
   sceneName: ShootingScene
   timeLimitSeconds: 90
   targetScoreToWin: 90
-  instructionsText: "Empu\xF1a la pistola con tu mano derecha. Apunta alineando el alza trasera verde con el poste naranja delantero para impactar en el centro de la diana (Bullseye). Presiona el gatillo para disparar e inclina el arma hacia abajo para recargar."
+  instructionsText: "Empu\xF1a la pistola con tu mano derecha. Apunta alineando el
+    alza trasera verde con el poste naranja delantero para impactar en el centro
+    de la diana (Bullseye). Presiona el gatillo para disparar e inclina el arma hacia
+    abajo para recargar."
