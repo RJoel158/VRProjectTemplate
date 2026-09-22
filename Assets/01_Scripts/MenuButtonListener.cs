@@ -22,10 +22,9 @@ public class MenuButtonListener : MonoBehaviour
 
     private void OnDisable()
     {
-        if (menuAction != null)
+        if (menuAction != null && menuAction.action != null)
         {
             menuAction.action.performed -= OnMenuButtonPressed;
-            menuAction.action.Disable();
         }
     }
 

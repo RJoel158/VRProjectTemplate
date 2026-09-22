@@ -127,12 +127,7 @@ namespace Tiro.Weapons
 
         private void OnDisable()
         {
-            try
-            {
-                if (fireAction.action != null && fireAction.action.enabled) fireAction.action.Disable();
-                if (reloadAction.action != null && reloadAction.action.enabled) reloadAction.action.Disable();
-            }
-            catch (Exception) { }
+            // No deshabilitar fireAction ni reloadAction aquí para evitar dejar las acciones deshabilitadas en el InputActionAsset global al reiniciar la escena
         }
 
         private void Start()

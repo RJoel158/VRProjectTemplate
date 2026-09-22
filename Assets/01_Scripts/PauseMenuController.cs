@@ -37,14 +37,22 @@ public class PauseMenuController : MonoBehaviour
     public void OnResumeButtonPressed()
     {
         isPaused = false;
-        pauseMenuCanvas.SetActive(false);
+        if (pauseMenuCanvas != null) pauseMenuCanvas.SetActive(false);
         Time.timeScale = 1f;
     }
 
     // Hook this to the "Restart" button's OnClick in the Inspector.
     public void OnRestartButtonPressed()
     {
+        isPaused = false;
+        if (pauseMenuCanvas != null) pauseMenuCanvas.SetActive(false);
         Time.timeScale = 1f;
+
+        if (VRInputPersistenceManager.Instance != null)
+        {
+            VRInputPersistenceManager.Instance.CollectAndEnableInputAssets();
+        }
+
         Scene currentScene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(currentScene.name);
     }
@@ -52,7 +60,15 @@ public class PauseMenuController : MonoBehaviour
     // Hook this to the "Main Menu" button's OnClick in the Inspector.
     public void OnMainMenuButtonPressed()
     {
+        isPaused = false;
+        if (pauseMenuCanvas != null) pauseMenuCanvas.SetActive(false);
         Time.timeScale = 1f;
+
+        if (VRInputPersistenceManager.Instance != null)
+        {
+            VRInputPersistenceManager.Instance.CollectAndEnableInputAssets();
+        }
+
         SceneManager.LoadScene(mainMenuSceneName);
     }
 }

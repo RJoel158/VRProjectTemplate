@@ -101,8 +101,12 @@ public class MainMenuManager : MonoBehaviour
         }
         else
         {
-            // Asegurar que el primer listener esté habilitado
+            // Asegurar que solo un listener esté habilitado y desactivar duplicados
             listeners[0].enabled = true;
+            for (int i = 1; i < listeners.Length; i++)
+            {
+                listeners[i].enabled = false;
+            }
         }
 
         // 4. Configurar AudioSource para SFX (2D estéreo, sin atenuación por distancia)
@@ -261,6 +265,12 @@ public class MainMenuManager : MonoBehaviour
                 musicSource.volume = Mathf.Lerp(startVol, 0f, elapsed / duration);
             }
             yield return null;
+        }
+
+        Time.timeScale = 1f;
+        if (VRInputPersistenceManager.Instance != null)
+        {
+            VRInputPersistenceManager.Instance.CollectAndEnableInputAssets();
         }
 
         SceneManager.LoadScene(sceneName);
