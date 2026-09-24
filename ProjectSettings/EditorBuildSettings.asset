@@ -23,6 +23,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/00_Scenes/ShootingScene.unity
     guid: 56907b8fb140456c87286c19f4e85cc2
+  - enabled: 1
+    path: Assets/00_Scenes/GolfScene.unity
+    guid: 423523f19ae60e743995c247e6975dc1
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: bfa1182bd221b4ca89619141f66f1260, type: 2}
     Unity.XR.WindowsMR.Settings: {fileID: 11400000, guid: dc5a169419fa04987b057f65238cf3ba, type: 2}

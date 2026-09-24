@@ -9,6 +9,7 @@ TagManager:
   - BowlingPin
   - BowlingBall
   - Floor
+  - WoodBumper
   layers:
   - Default
   - TransparentFX
