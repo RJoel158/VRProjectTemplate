@@ -50,6 +50,14 @@ public class MenuButtonHighlight : MonoBehaviour, IPointerEnterHandler, IPointer
 
     private void SetHighlight(bool state)
     {
+        if (state && !isHighlighted)
+        {
+            if (MainMenuManager.Instance != null)
+            {
+                MainMenuManager.Instance.PlayHoverSound();
+            }
+        }
+
         isHighlighted = state;
         if (borderHighlight != null)
         {

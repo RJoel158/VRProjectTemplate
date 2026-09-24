@@ -129,7 +129,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_TrackingType: 0
   m_UpdateType: 0
-  m_IgnoreTrackingState: 0
+  m_IgnoreTrackingState: 1
   m_PositionInput:
     m_UseReference: 1
     m_Action:
@@ -318,7 +318,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_TrackingType: 0
   m_UpdateType: 0
-  m_IgnoreTrackingState: 0
+  m_IgnoreTrackingState: 1
   m_PositionInput:
     m_UseReference: 1
     m_Action:
@@ -524,7 +524,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_TrackingType: 0
   m_UpdateType: 0
-  m_IgnoreTrackingState: 0
+  m_IgnoreTrackingState: 1
   m_PositionInput:
     m_UseReference: 1
     m_Action:
