@@ -1,31 +1,36 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Controls a World Space Canvas that acts as the pause menu.
-// Toggle it open/closed with the controller's Menu button (wired up via
-// an Input Action - see the Inspector setup notes below), and use the
-// buttons on the menu to resume, restart, or go back to the main menu.
+
 public class PauseMenuController : MonoBehaviour
 {
-    [Tooltip("The Canvas GameObject that holds all the pause menu UI.")]
-    public GameObject pauseMenuCanvas;
+    [Tooltip("El PauseMenuAnimator que maneja la animación de deslizamiento y fade (está en el mismo objeto que el Canvas del menú de pausa).")]
+    public PauseMenuAnimator pauseMenuAnimator;
 
     [Tooltip("Name of the main menu scene to return to.")]
     public string mainMenuSceneName = "MainMenu";
 
+    [Header("Sonido al apretar un botón del menú")]
+    public AudioSource buttonAudioSource;
+    public AudioClip buttonClickSound;
+
     private bool isPaused = false;
 
-    private void Start()
+    private void PlayButtonSound()
     {
-        // Make sure the menu starts hidden.
-        pauseMenuCanvas.SetActive(false);
+        if (buttonAudioSource != null && buttonClickSound != null)
+            buttonAudioSource.PlayOneShot(buttonClickSound);
     }
 
     // Call this from your Input Action (Menu button on the controller).
     public void TogglePauseMenu()
     {
         isPaused = !isPaused;
-        pauseMenuCanvas.SetActive(isPaused);
+
+        if (isPaused)
+            pauseMenuAnimator.Open();
+        else
+            pauseMenuAnimator.Close();
 
         // Optional: actually pause game time while the menu is open.
         // Comment this out if you'd rather let physics keep running
@@ -36,16 +41,20 @@ public class PauseMenuController : MonoBehaviour
     // Hook this to the "Resume" button's OnClick in the Inspector.
     public void OnResumeButtonPressed()
     {
+        PlayButtonSound();
+
         isPaused = false;
-        if (pauseMenuCanvas != null) pauseMenuCanvas.SetActive(false);
+        pauseMenuAnimator.Close();
         Time.timeScale = 1f;
     }
 
     // Hook this to the "Restart" button's OnClick in the Inspector.
     public void OnRestartButtonPressed()
     {
+        PlayButtonSound();
+
         isPaused = false;
-        if (pauseMenuCanvas != null) pauseMenuCanvas.SetActive(false);
+        pauseMenuAnimator.Close();
         Time.timeScale = 1f;
 
         if (VRInputPersistenceManager.Instance != null)
@@ -60,8 +69,10 @@ public class PauseMenuController : MonoBehaviour
     // Hook this to the "Main Menu" button's OnClick in the Inspector.
     public void OnMainMenuButtonPressed()
     {
+        PlayButtonSound();
+
         isPaused = false;
-        if (pauseMenuCanvas != null) pauseMenuCanvas.SetActive(false);
+        pauseMenuAnimator.Close();
         Time.timeScale = 1f;
 
         if (VRInputPersistenceManager.Instance != null)
