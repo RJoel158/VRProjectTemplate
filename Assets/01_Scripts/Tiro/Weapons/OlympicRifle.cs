@@ -293,8 +293,9 @@ namespace Tiro.Weapons
             {
                 hitPoint = hit.point;
 
-                // 1. Dianas olímpicas fijas
+                // 1. Dianas olímpicas y modelos de objetivos con MeshCollider
                 var target = hit.collider.GetComponentInParent<TargetBoard>();
+                if (target == null) target = hit.collider.GetComponent<TargetBoard>();
                 if (target != null)
                 {
                     target.RegisterBulletHit(hit.point, hit.normal);
@@ -323,7 +324,10 @@ namespace Tiro.Weapons
                 }
             }
 
-            StartCoroutine(RenderTracer(origin, hitPoint));
+            if (gameObject.activeInHierarchy)
+            {
+                StartCoroutine(RenderTracer(origin, hitPoint));
+            }
 
             if (muzzleFlash != null) muzzleFlash.Play();
 

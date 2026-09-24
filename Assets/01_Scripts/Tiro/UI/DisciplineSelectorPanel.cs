@@ -40,6 +40,7 @@ namespace Tiro.UI
         {
             if (audioSource == null) audioSource = GetComponent<AudioSource>();
             AlignToShooterView();
+            UpdatePanelDisplay();
         }
 
         public void AlignToShooterView()
@@ -153,20 +154,20 @@ namespace Tiro.UI
             {
                 if (rangeManager.IsSequenceMode)
                 {
-                    currentDisciplineText.text = "MODALIDAD: <color=#FFD700>🏆 CIRCUITO OLÍMPICO (SECUENCIA COMPLETA)</color>";
+                    currentDisciplineText.text = "MODALIDAD: <color=#FFD700>[CIRCUITO OLIMPICO (SECUENCIA COMPLETA)]</color>";
                 }
                 else
                 {
                     switch (discipline)
                     {
                         case ShootingDiscipline.OlympicRifleDistance:
-                            currentDisciplineText.text = "MODALIDAD: <color=#00E5FF>🎯 RIFLE DE PRECISIÓN (10m, 25m, 50m)</color>";
+                            currentDisciplineText.text = "MODALIDAD: <color=#00E5FF>[RIFLE DE PRECISION (10m, 25m, 50m)]</color>";
                             break;
                         case ShootingDiscipline.DynamicPistolWall:
-                            currentDisciplineText.text = "MODALIDAD: <color=#00FF66>🔫 PISTOLA RÁPIDA (Pared Reactiva)</color>";
+                            currentDisciplineText.text = "MODALIDAD: <color=#00FF66>[PISTOLA RAPIDA (Pared Reactiva)]</color>";
                             break;
                         case ShootingDiscipline.ClayPigeonShotgun:
-                            currentDisciplineText.text = "MODALIDAD: <color=#FF8800>💥 TIRO AL PLATO (Escopeta Skeet)</color>";
+                            currentDisciplineText.text = "MODALIDAD: <color=#FF8800>[TIRO AL PLATO (Escopeta Skeet)]</color>";
                             break;
                     }
                 }
@@ -175,7 +176,7 @@ namespace Tiro.UI
             if (recordsText != null && rangeManager.SaveData != null)
             {
                 var save = rangeManager.SaveData;
-                recordsText.text = $"RÉCORDS:\n🎯 Rifle: {save.rifleHighScore} pts  |  🔫 Pistola: {save.pistolHighScore} pts  |  💥 Plato: {save.clayHighScore} pts";
+                recordsText.text = $"RECORDS:\nRifle: {save.rifleHighScore} pts  |  Pistola: {save.pistolHighScore} pts  |  Plato: {save.clayHighScore} pts";
             }
         }
 
@@ -192,6 +193,14 @@ namespace Tiro.UI
         /// </summary>
         public void HandleShotOnButton(string buttonTag)
         {
+            StartCoroutine(DeferredHandleShotOnButton(buttonTag));
+        }
+
+        private System.Collections.IEnumerator DeferredHandleShotOnButton(string buttonTag)
+        {
+            // Esperar al final del cuadro para que el arma actual termine su ciclo de disparo limpiamente sin ser desactivada a mitad de ejecucion
+            yield return new WaitForEndOfFrame();
+
             if (buttonTag.Contains("sequence") || buttonTag.Contains("circuito") || buttonTag.Contains("torneo")) OnStartSequence();
             else if (buttonTag.Contains("rifle")) OnSelectDiscipline(ShootingDiscipline.OlympicRifleDistance);
             else if (buttonTag.Contains("pistol")) OnSelectDiscipline(ShootingDiscipline.DynamicPistolWall);

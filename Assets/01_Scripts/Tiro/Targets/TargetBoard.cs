@@ -8,9 +8,10 @@ using Tiro.Data;
 namespace Tiro.Targets
 {
     /// <summary>
-    /// Representa una diana concéntrica olímpica interactiva.
-    /// Calcula con precisión milimétrica la distancia del impacto al centro (Bullseye),
-    /// coloca marcas de orificio de bala, anima el retroceso de la diana y genera popups de puntuación.
+    /// Representa una diana concentrica olimpica interactiva.
+    /// Calcula con precision milimetrica la distancia del impacto al centro (Bullseye),
+    /// coloca marcas de orificio de bala, anima el retroceso de la diana, genera popups de puntuacion
+    /// y gestiona el abatimiento/descenso automatico al completar los puntos requeridos.
     /// </summary>
     public class TargetBoard : MonoBehaviour
     {
@@ -25,6 +26,16 @@ namespace Tiro.Targets
         [SerializeField] private float distanceMeters = 10f;
         [SerializeField] private string laneName = "Carril 1 (10m)";
 
+        [Header("Knockdown Settings")]
+        [Tooltip("Puntos acumulados necesarios en esta diana para abatirse/descender.")]
+        [SerializeField] private int pointsToKnockdown = 30;
+        [Tooltip("Distancia en metros que desciende el objetivo al abatirse.")]
+        [SerializeField] private float dropDistance = 3.5f;
+        [Tooltip("Angulo de inclinacion hacia atras al abatirse (en grados).")]
+        [SerializeField] private float dropAngle = 0f;
+        [Tooltip("Duracion en segundos de la animacion de caida y subida.")]
+        [SerializeField] private float dropDuration = 0.45f;
+
         [Header("Decals & Popups")]
         [SerializeField] private GameObject bulletHolePrefab;
         [SerializeField] private GameObject scorePopupPrefab;
@@ -34,11 +45,22 @@ namespace Tiro.Targets
         private Coroutine swingCoroutine;
         private Quaternion initialSwingRot;
 
+        private int currentPointsAccumulated = 0;
+        private bool isKnockedDown = false;
+        private Vector3 initialLocalPos;
+        private Quaternion initialLocalRot;
+        private bool hasSavedInitialTransform = false;
+        private Coroutine dropCoroutine;
+
         public float DistanceMeters => distanceMeters;
         public string LaneName => laneName;
         public TargetConfigSO Config => config;
+        public bool IsKnockedDown => isKnockedDown;
+        public int CurrentPointsAccumulated => currentPointsAccumulated;
+        public int PointsToKnockdown => pointsToKnockdown;
 
         public event Action<TargetBoard, int, bool, Vector3> OnHitScored; // (target, score, isBullseye, hitPoint)
+        public event Action<TargetBoard> OnTargetKnockedDown;
 
         private void Awake()
         {
@@ -47,47 +69,84 @@ namespace Tiro.Targets
             if (audioSource == null) audioSource = GetComponent<AudioSource>();
 
             initialSwingRot = swingPivot.localRotation;
+            SaveInitialTransform();
+        }
+
+        private void SaveInitialTransform()
+        {
+            if (!hasSavedInitialTransform)
+            {
+                initialLocalPos = transform.localPosition;
+                initialLocalRot = transform.localRotation;
+                hasSavedInitialTransform = true;
+            }
         }
 
         public void RegisterBulletHit(Vector3 worldHitPoint, Vector3 hitNormal)
         {
-            // 1. Proyectar el punto de impacto en el plano local de la diana
-            Vector3 localHit = targetCenter.InverseTransformPoint(worldHitPoint);
-            float distanceFromCenter = new Vector2(localHit.x, localHit.y).magnitude;
+            if (isKnockedDown) return;
 
-            // 2. Calcular puntuación concéntrica olímpica (1 a 10)
+            // 1. Proyectar el punto de impacto en el plano local de la diana si existe targetCenter
             bool isBullseye = false;
             int score = 0;
 
-            if (config != null)
+            if (targetCenter != null && config != null)
             {
+                Vector3 localHit = targetCenter.InverseTransformPoint(worldHitPoint);
+                float distanceFromCenter = new Vector2(localHit.x, localHit.y).magnitude;
                 score = config.CalculateScore(distanceFromCenter, out isBullseye);
             }
-            else
+
+            // Cada impacto registrado en el MeshCollider puntua directamente (10 pts)
+            if (score <= 0)
             {
-                // Fallback estándar
-                if (distanceFromCenter < 0.03f) { score = 10; isBullseye = true; }
-                else if (distanceFromCenter < 0.07f) score = 9;
-                else if (distanceFromCenter < 0.12f) score = 8;
-                else if (distanceFromCenter < 0.18f) score = 7;
-                else if (distanceFromCenter < 0.25f) score = 5;
-                else score = 0;
+                score = 10;
+                isBullseye = true;
             }
 
-            // 3. Crear orificio de bala
+            // 2. Crear orificio de bala en el punto exacto de la colision
             SpawnBulletHole(worldHitPoint, hitNormal);
 
-            // 4. Feedback sonoro
+            // 3. Feedback sonoro
             PlayHitSound(isBullseye);
 
-            // 5. Animación de balanceo
+            // 4. Animacion de balanceo
             if (swingCoroutine != null) StopCoroutine(swingCoroutine);
             swingCoroutine = StartCoroutine(AnimateHitSwing());
 
-            // 6. Texto flotante de puntuación
+            // 5. Texto flotante de puntuacion
             SpawnScorePopup(worldHitPoint, score, isBullseye);
 
+            currentPointsAccumulated += score;
             OnHitScored?.Invoke(this, score, isBullseye, worldHitPoint);
+
+            // 6. Si alcanza la cuota de puntos de la diana, se abate/desciende
+            if (pointsToKnockdown > 0 && currentPointsAccumulated >= pointsToKnockdown)
+            {
+                KnockDownTarget();
+            }
+        }
+
+        public void KnockDownTarget()
+        {
+            if (isKnockedDown) return;
+            isKnockedDown = true;
+            SaveInitialTransform();
+
+            // Desactivar colliders inmediatamente para impedir seguir farmeando impactos
+            SetCollidersActive(false);
+
+            // Sonido de diana derribada / abatida
+            Tiro.Audio.ShootingAudioManager.PlayTargetKnockdown();
+
+            // Texto informativo flotante
+            SpawnKnockdownPopup();
+
+            // Animacion suave de descenso e inclinacion
+            if (dropCoroutine != null) StopCoroutine(dropCoroutine);
+            dropCoroutine = StartCoroutine(AnimateDropRoutine(true));
+
+            OnTargetKnockedDown?.Invoke(this);
         }
 
         private void SpawnBulletHole(Vector3 point, Vector3 normal)
@@ -129,9 +188,9 @@ namespace Tiro.Targets
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.fontSize = 2.4f;
 
-            if (isBullseye)
+            if (isBullseye || score >= 10)
             {
-                tmp.text = "★ 10 X ★";
+                tmp.text = "+10";
                 tmp.color = new Color(1f, 0.85f, 0.1f, 1f); // Oro reluciente
             }
             else if (score >= 9)
@@ -149,6 +208,21 @@ namespace Tiro.Targets
                 tmp.text = "FALLO";
                 tmp.color = new Color(0.85f, 0.2f, 0.2f, 1f); // Rojo fallo
             }
+
+            StartCoroutine(AnimateScorePopup(popupObj));
+        }
+
+        private void SpawnKnockdownPopup()
+        {
+            GameObject popupObj = new GameObject("KnockdownPopup");
+            popupObj.transform.position = transform.position + Vector3.up * 0.35f;
+            popupObj.transform.rotation = Quaternion.identity;
+
+            TextMeshPro tmp = popupObj.AddComponent<TextMeshPro>();
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.fontSize = 3f;
+            tmp.text = "DIANA ABATIDA";
+            tmp.color = new Color(1f, 0.75f, 0.1f, 1f);
 
             StartCoroutine(AnimateScorePopup(popupObj));
         }
@@ -188,7 +262,7 @@ namespace Tiro.Targets
         {
             if (swingPivot == null) yield break;
 
-            // Inclinación hacia atrás por impacto
+            // Inclinacion hacia atras por impacto
             Quaternion kickedRot = initialSwingRot * Quaternion.Euler(-6f, 0f, 0f);
 
             float elapsed = 0f;
@@ -199,7 +273,7 @@ namespace Tiro.Targets
                 yield return null;
             }
 
-            // Oscilación de amortiguación
+            // Oscilacion de amortiguacion
             elapsed = 0f;
             while (elapsed < 0.25f)
             {
@@ -214,11 +288,83 @@ namespace Tiro.Targets
             swingCoroutine = null;
         }
 
+        private IEnumerator AnimateDropRoutine(bool dropDown)
+        {
+            if (!dropDown)
+            {
+                // Al iniciar la subida, asegurar que los renderers sean visibles
+                SetRenderersActive(true);
+            }
+
+            Vector3 startPos = transform.localPosition;
+            Quaternion startRot = transform.localRotation;
+
+            Vector3 targetPos = dropDown ? (initialLocalPos + Vector3.down * dropDistance) : initialLocalPos;
+            Quaternion targetRot = dropDown ? (initialLocalRot * Quaternion.Euler(dropAngle, 0f, 0f)) : initialLocalRot;
+
+            float elapsed = 0f;
+            while (elapsed < dropDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / dropDuration);
+                float smoothT = t * t * (3f - 2f * t);
+
+                transform.localPosition = Vector3.Lerp(startPos, targetPos, smoothT);
+                transform.localRotation = Quaternion.Slerp(startRot, targetRot, smoothT);
+                yield return null;
+            }
+
+            transform.localPosition = targetPos;
+            transform.localRotation = targetRot;
+
+            if (dropDown)
+            {
+                // Al estar totalmente hundido, desactivar renderers para no interferir visualmente
+                SetRenderersActive(false);
+            }
+            else
+            {
+                // Al terminar de subir, volver a activar los colliders
+                SetCollidersActive(true);
+            }
+
+            dropCoroutine = null;
+        }
+
+        private void SetCollidersActive(bool active)
+        {
+            Collider[] colliders = GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                if (colliders[i] != null)
+                {
+                    colliders[i].enabled = active;
+                }
+            }
+        }
+
+        private void SetRenderersActive(bool active)
+        {
+            Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] != null)
+                {
+                    renderers[i].enabled = active;
+                }
+            }
+        }
+
         /// <summary>
-        /// Limpia los impactos previos y deja la diana nueva para la siguiente serie.
+        /// Limpia los impactos previos, restaura la diana y la levanta para la siguiente serie.
         /// </summary>
         public void ResetTarget()
         {
+            SaveInitialTransform();
+            currentPointsAccumulated = 0;
+            isKnockedDown = false;
+            SetRenderersActive(true);
+
             for (int i = 0; i < activeDecals.Count; i++)
             {
                 if (activeDecals[i] != null)
@@ -232,6 +378,9 @@ namespace Tiro.Targets
             {
                 swingPivot.localRotation = initialSwingRot;
             }
+
+            if (dropCoroutine != null) StopCoroutine(dropCoroutine);
+            dropCoroutine = StartCoroutine(AnimateDropRoutine(false));
         }
     }
 }

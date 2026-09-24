@@ -20,6 +20,10 @@ namespace Tiro.Editor
         private const string PauseMenuPrefabGuid = "fb0fc33f728c20c4da4e60734a5f1a43";
         private const string PistolPrefabPath = "Assets/03_Resources/Prefabs/Tiro/Olympic_Pistol_VR.prefab";
 
+        private const string BounPath = "Assets/03_Resources/NewModels/Boun/Meshy_AI_Brick_and_Timber_Boun_0923230945_texture.fbx";
+        private const string GrassPath = "Assets/03_Resources/NewModels/grass/Meshy_AI_necesito_pasto_para_u_0923230439_texture.fbx";
+        private const string ObjectivesPath = "Assets/03_Resources/NewModels/OBJECTIVES/Meshy_AI_Necesito_objetivos_pa_0923225936_texture.fbx";
+
 
 
         [MenuItem("VR Sports/Tiro/Fix Sun Light Reference")]
@@ -156,29 +160,72 @@ namespace Tiro.Editor
             // 3. Entorno del Polígono Olímpico (Shooting Booth & Range)
             GameObject rangeRoot = new GameObject("Olympic_Shooting_Range");
 
-            // Suelo del polígono
+            // Suelo base colisionador del polígono
+            // Suelo base colisionador del polígono (18m x 60m de césped atlético)
             GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
             floor.name = "Range_Floor";
             floor.transform.SetParent(rangeRoot.transform);
             floor.transform.position = new Vector3(0f, -0.05f, 25f);
             floor.transform.localScale = new Vector3(18f, 0.1f, 60f);
-            if (matFloor != null) floor.GetComponent<Renderer>().material = matFloor;
+            var floorMr = floor.GetComponent<MeshRenderer>();
+            if (floorMr != null)
+            {
+                floorMr.enabled = true;
+                if (matFloor != null)
+                {
+                    matFloor.SetColor("_BaseColor", new Color(0.22f, 0.42f, 0.18f, 1f));
+                    matFloor.SetFloat("_Smoothness", 0.08f);
+                    floorMr.material = matFloor;
+                }
+            }
 
-            // Línea roja reglamentaria de tiro (Safety Firing Line)
-            GameObject redLine = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            redLine.name = "Safety_Firing_Line";
-            redLine.transform.SetParent(rangeRoot.transform);
-            redLine.transform.position = new Vector3(0f, 0.005f, 0.5f);
-            redLine.transform.localScale = new Vector3(18f, 0.01f, 0.18f);
-            if (matSafetyRed != null) redLine.GetComponent<Renderer>().material = matSafetyRed;
+            // Modelo 3D de césped (Grass) - Proporcionado naturalmente en primer plano frente a la cerca
+            GameObject grassPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(GrassPath);
+            if (grassPrefab != null)
+            {
+                GameObject grassObj = (GameObject)PrefabUtility.InstantiatePrefab(grassPrefab, rangeRoot.transform);
+                grassObj.name = "Range_Grass_Foreground";
+                grassObj.transform.position = new Vector3(0f, -0.02f, 2.2f);
+                grassObj.transform.rotation = Quaternion.Euler(-90f, 0f, 0f);
+                grassObj.transform.localScale = new Vector3(2.5f, 2.5f, 1.0f);
+            }
 
-            // Mesa / Mostrador de apoyo del tirador (Shooting Bench)
-            GameObject bench = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            bench.name = "Shooting_Bench";
-            bench.transform.SetParent(rangeRoot.transform);
-            bench.transform.position = new Vector3(0f, 0.45f, 0.85f);
-            bench.transform.localScale = new Vector3(2.4f, 0.9f, 0.55f);
-            if (matGunBlack != null) bench.GetComponent<Renderer>().material = matGunBlack;
+            // Cerca de madera (Boun) erguida a altura de cintura (0.88m)
+            GameObject bounPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BounPath);
+            if (bounPrefab != null)
+            {
+                GameObject fenceObj = (GameObject)PrefabUtility.InstantiatePrefab(bounPrefab, rangeRoot.transform);
+                fenceObj.name = "Shooting_Fence_Boun";
+                fenceObj.transform.position = new Vector3(0f, 0.44f, 0.85f);
+                fenceObj.transform.rotation = Quaternion.Euler(-90f, 0f, 0f);
+                fenceObj.transform.localScale = new Vector3(1.30f, 1.40f, 1.57f);
+
+                // Eliminar colliders en el prefab para usar colision no deformada
+                foreach (var col in fenceObj.GetComponentsInChildren<Collider>())
+                {
+                    Object.DestroyImmediate(col);
+                }
+
+                GameObject colHolder = new GameObject("Fence_Collision_Barrier");
+                colHolder.transform.SetParent(rangeRoot.transform);
+                colHolder.transform.position = new Vector3(0f, 0.44f, 0.85f);
+                colHolder.transform.rotation = Quaternion.identity;
+                colHolder.transform.localScale = Vector3.one;
+
+                BoxCollider fenceCol = colHolder.AddComponent<BoxCollider>();
+                fenceCol.center = Vector3.zero;
+                fenceCol.size = new Vector3(2.45f, 0.88f, 0.25f);
+            }
+            else
+            {
+                // Fallback por seguridad
+                GameObject bench = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                bench.name = "Shooting_Bench";
+                bench.transform.SetParent(rangeRoot.transform);
+                bench.transform.position = new Vector3(0f, 0.44f, 0.85f);
+                bench.transform.localScale = new Vector3(2.4f, 0.88f, 0.55f);
+                if (matGunBlack != null) bench.GetComponent<Renderer>().material = matGunBlack;
+            }
 
             // Pared trasera de absorción balística a 55m (abierta arriba para el cielo)
             GameObject backstop = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -192,10 +239,12 @@ namespace Tiro.Editor
             GameObject distanceTargetsRoot = new GameObject("Distance_Targets_Root");
             distanceTargetsRoot.transform.SetParent(rangeRoot.transform);
 
+            GameObject objectivesPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ObjectivesPath);
+
             List<TargetBoard> targetBoards = new List<TargetBoard>();
-            targetBoards.Add(CreateTargetBoard("Target_10m", new Vector3(0f, 1.4f, 10f), 10f, "Carril 1 (10 Metros)", targetConfig, matTargetWhite, matTargetBlack, matTargetGold, matGunBlack, distanceTargetsRoot.transform));
-            targetBoards.Add(CreateTargetBoard("Target_25m", new Vector3(-3.2f, 1.4f, 25f), 25f, "Carril 2 (25 Metros)", targetConfig, matTargetWhite, matTargetBlack, matTargetGold, matGunBlack, distanceTargetsRoot.transform));
-            targetBoards.Add(CreateTargetBoard("Target_50m", new Vector3(3.2f, 1.4f, 50f), 50f, "Carril 3 (50 Metros)", targetConfig, matTargetWhite, matTargetBlack, matTargetGold, matGunBlack, distanceTargetsRoot.transform));
+            targetBoards.Add(CreateTargetBoard("Target_10m", new Vector3(0f, 1.4f, 10f), 10f, "Carril 1 (10 Metros)", targetConfig, matTargetWhite, matTargetBlack, matTargetGold, matGunBlack, distanceTargetsRoot.transform, objectivesPrefab));
+            targetBoards.Add(CreateTargetBoard("Target_25m", new Vector3(-3.2f, 1.4f, 25f), 25f, "Carril 2 (25 Metros)", targetConfig, matTargetWhite, matTargetBlack, matTargetGold, matGunBlack, distanceTargetsRoot.transform, objectivesPrefab));
+            targetBoards.Add(CreateTargetBoard("Target_50m", new Vector3(3.2f, 1.4f, 50f), 50f, "Carril 3 (50 Metros)", targetConfig, matTargetWhite, matTargetBlack, matTargetGold, matGunBlack, distanceTargetsRoot.transform, objectivesPrefab));
 
             // 5. Disciplina 2: Galería de Pared Cercana con Dianas Dinámicas (8.5m)
             GameObject wallGalleryObj = BuildDynamicWallGallery(new Vector3(0f, 1.55f, 8.5f), matGunBlack, matSightGreen, matTargetBlack, matSightOrange);
@@ -258,7 +307,7 @@ namespace Tiro.Editor
 
             var soManager = new SerializedObject(manager);
             soManager.FindProperty("config").objectReferenceValue = rangeConfig;
-            soManager.FindProperty("activeDiscipline").enumValueIndex = (int)ShootingDiscipline.DynamicPistolWall;
+            soManager.FindProperty("activeDiscipline").enumValueIndex = (int)ShootingDiscipline.OlympicRifleDistance;
             soManager.FindProperty("rifle").objectReferenceValue = rifleComponent;
             soManager.FindProperty("pistol").objectReferenceValue = pistolComponent;
             soManager.FindProperty("shotgun").objectReferenceValue = shotgunComponent;
@@ -301,20 +350,11 @@ namespace Tiro.Editor
             Debug.Log($"[ShootingSceneBuilder] ¡Escena de Tiro Deportivo Olímpico con 3 Disciplinas construida exitosamente en {ScenePath}!");
         }
 
-        private static TargetBoard CreateTargetBoard(string name, Vector3 position, float distance, string laneName, TargetConfigSO config, Material matWhite, Material matBlack, Material matGold, Material matStand, Transform parent)
+        private static TargetBoard CreateTargetBoard(string name, Vector3 position, float distance, string laneName, TargetConfigSO config, Material matWhite, Material matBlack, Material matGold, Material matStand, Transform parent, GameObject objectivesPrefab = null)
         {
             GameObject targetRoot = new GameObject(name);
             targetRoot.transform.SetParent(parent);
             targetRoot.transform.position = position;
-
-            // Poste de soporte al suelo
-            GameObject stand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            stand.name = "Stand_Pole";
-            stand.transform.SetParent(targetRoot.transform);
-            stand.transform.localPosition = new Vector3(0f, -position.y * 0.5f, 0.05f);
-            stand.transform.localScale = new Vector3(0.06f, position.y * 0.5f, 0.06f);
-            if (matStand != null) stand.GetComponent<Renderer>().material = matStand;
-            Object.DestroyImmediate(stand.GetComponent<Collider>());
 
             // Marco superior / Pivote de balanceo
             GameObject swingPivotObj = new GameObject("Swing_Pivot");
@@ -328,49 +368,103 @@ namespace Tiro.Editor
 
             // Placa trasera de impacto (BoxCollider para detección de raycast balístico)
             BoxCollider boxCollider = board.AddComponent<BoxCollider>();
-            boxCollider.size = new Vector3(0.65f, 0.65f, 0.04f);
 
-            // Anillo Exterior Blanco (Zona 1 a 6) - Diámetro 50cm
-            GameObject outerRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            outerRing.name = "Ring_Outer_White_50cm";
-            outerRing.transform.SetParent(board.transform);
-            outerRing.transform.localPosition = Vector3.zero;
-            outerRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            outerRing.transform.localScale = new Vector3(0.50f, 0.002f, 0.50f);
-            if (matWhite != null) outerRing.GetComponent<Renderer>().material = matWhite;
-            Object.DestroyImmediate(outerRing.GetComponent<Collider>());
+            Transform centerTransform = board.transform;
 
-            // Anillo Medio Negro (Zona 7 a 8) - Diámetro 30cm
-            GameObject middleRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            middleRing.name = "Ring_Middle_Black_30cm";
-            middleRing.transform.SetParent(board.transform);
-            middleRing.transform.localPosition = new Vector3(0f, 0f, -0.003f);
-            middleRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            middleRing.transform.localScale = new Vector3(0.30f, 0.002f, 0.30f);
-            if (matBlack != null) middleRing.GetComponent<Renderer>().material = matBlack;
-            Object.DestroyImmediate(middleRing.GetComponent<Collider>());
+            if (objectivesPrefab != null)
+            {
+                float modelScale = 0.42f;
+                Vector2 colSize = new Vector2(0.55f, 0.55f);
 
-            // Anillo Dorado Central (Zona 9 y 10 / Bullseye) - Diámetro 10cm
-            GameObject centerGold = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            centerGold.name = "Ring_Center_Gold_10cm";
-            centerGold.transform.SetParent(board.transform);
-            centerGold.transform.localPosition = new Vector3(0f, 0f, -0.005f);
-            centerGold.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            centerGold.transform.localScale = new Vector3(0.10f, 0.002f, 0.10f);
-            if (matGold != null) centerGold.GetComponent<Renderer>().material = matGold;
-            Object.DestroyImmediate(centerGold.GetComponent<Collider>());
+                if (distance > 35f) // 50 Metros
+                {
+                    modelScale = 1.0f;
+                    colSize = new Vector2(1.25f, 1.25f);
+                }
+                else if (distance > 15f) // 25 Metros
+                {
+                    modelScale = 0.65f;
+                    colSize = new Vector2(0.85f, 0.85f);
+                }
+                else // 10 Metros
+                {
+                    modelScale = 0.42f;
+                    colSize = new Vector2(0.55f, 0.55f);
+                }
 
-            // Punto central 'X' (Bullseye de 5cm)
-            GameObject centerCross = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            centerCross.name = "Bullseye_InnerTen_5cm";
-            centerCross.transform.SetParent(board.transform);
-            centerCross.transform.localPosition = new Vector3(0f, 0f, -0.007f);
-            centerCross.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            centerCross.transform.localScale = new Vector3(0.045f, 0.002f, 0.045f);
-            if (matBlack != null) centerCross.GetComponent<Renderer>().material = matBlack;
-            Object.DestroyImmediate(centerCross.GetComponent<Collider>());
+                // Instanciar modelo 3D Objectives erguido verticalmente (-90 en X)
+                GameObject objModel = (GameObject)PrefabUtility.InstantiatePrefab(objectivesPrefab, board.transform);
+                objModel.name = "Objective_Model";
+                objModel.transform.localPosition = Vector3.zero;
+                objModel.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+                objModel.transform.localScale = Vector3.one * modelScale;
 
-            // Etiqueta de distancia en el poste
+                boxCollider.size = new Vector3(colSize.x, colSize.y, 0.15f);
+                boxCollider.center = Vector3.zero;
+
+                // Soporte vertical anclado al suelo para soporte físico y visual
+                GameObject postObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                postObj.name = "Stand_Support_Post";
+                postObj.transform.SetParent(targetRoot.transform);
+                postObj.transform.localPosition = new Vector3(0f, -0.70f, 0.02f);
+                postObj.transform.localScale = new Vector3(0.08f * (modelScale / 0.5f), 0.70f, 0.08f * (modelScale / 0.5f));
+                var postCol = postObj.GetComponent<Collider>();
+                if (postCol != null) Object.DestroyImmediate(postCol);
+                if (matStand != null) postObj.GetComponent<Renderer>().material = matStand;
+            }
+            else
+            {
+                // Fallback primitivo
+                GameObject stand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                stand.name = "Stand_Pole";
+                stand.transform.SetParent(targetRoot.transform);
+                stand.transform.localPosition = new Vector3(0f, -position.y * 0.5f, 0.05f);
+                stand.transform.localScale = new Vector3(0.06f, position.y * 0.5f, 0.06f);
+                if (matStand != null) stand.GetComponent<Renderer>().material = matStand;
+                Object.DestroyImmediate(stand.GetComponent<Collider>());
+
+                boxCollider.size = new Vector3(0.65f, 0.65f, 0.04f);
+
+                GameObject outerRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                outerRing.name = "Ring_Outer_White_50cm";
+                outerRing.transform.SetParent(board.transform);
+                outerRing.transform.localPosition = Vector3.zero;
+                outerRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                outerRing.transform.localScale = new Vector3(0.50f, 0.002f, 0.50f);
+                if (matWhite != null) outerRing.GetComponent<Renderer>().material = matWhite;
+                Object.DestroyImmediate(outerRing.GetComponent<Collider>());
+
+                GameObject middleRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                middleRing.name = "Ring_Middle_Black_30cm";
+                middleRing.transform.SetParent(board.transform);
+                middleRing.transform.localPosition = new Vector3(0f, 0f, -0.003f);
+                middleRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                middleRing.transform.localScale = new Vector3(0.30f, 0.002f, 0.30f);
+                if (matBlack != null) middleRing.GetComponent<Renderer>().material = matBlack;
+                Object.DestroyImmediate(middleRing.GetComponent<Collider>());
+
+                GameObject centerGold = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                centerGold.name = "Ring_Center_Gold_10cm";
+                centerGold.transform.SetParent(board.transform);
+                centerGold.transform.localPosition = new Vector3(0f, 0f, -0.005f);
+                centerGold.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                centerGold.transform.localScale = new Vector3(0.10f, 0.002f, 0.10f);
+                if (matGold != null) centerGold.GetComponent<Renderer>().material = matGold;
+                Object.DestroyImmediate(centerGold.GetComponent<Collider>());
+
+                GameObject centerCross = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                centerCross.name = "Bullseye_InnerTen_5cm";
+                centerCross.transform.SetParent(board.transform);
+                centerCross.transform.localPosition = new Vector3(0f, 0f, -0.007f);
+                centerCross.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                centerCross.transform.localScale = new Vector3(0.045f, 0.002f, 0.045f);
+                if (matBlack != null) centerCross.GetComponent<Renderer>().material = matBlack;
+                Object.DestroyImmediate(centerCross.GetComponent<Collider>());
+
+                centerTransform = centerGold.transform;
+            }
+
+            // Etiqueta de distancia en la diana
             GameObject labelObj = new GameObject("Distance_Label");
             labelObj.transform.SetParent(targetRoot.transform);
             labelObj.transform.localPosition = new Vector3(0f, 0.45f, -0.05f);
@@ -387,7 +481,7 @@ namespace Tiro.Editor
 
             var so = new SerializedObject(targetBoard);
             so.FindProperty("config").objectReferenceValue = config;
-            so.FindProperty("targetCenter").objectReferenceValue = centerGold.transform;
+            so.FindProperty("targetCenter").objectReferenceValue = centerTransform;
             so.FindProperty("swingPivot").objectReferenceValue = swingPivotObj.transform;
             so.FindProperty("distanceMeters").floatValue = distance;
             so.FindProperty("laneName").stringValue = laneName;
@@ -982,16 +1076,16 @@ namespace Tiro.Editor
             var activeTmp = activeDiscObj.AddComponent<TextMeshProUGUI>();
             activeTmp.rectTransform.anchoredPosition = new Vector2(0f, 410f);
             activeTmp.rectTransform.sizeDelta = new Vector2(950f, 75f);
-            activeTmp.text = "MODALIDAD: <color=#00E5FF>🎯 RIFLE DE PRECISIÓN (10m, 25m, 50m)</color>";
+            activeTmp.text = "MODALIDAD: <color=#00E5FF>RIFLE DE PRECISION (10m, 25m, 50m)</color>";
             activeTmp.fontSize = 32;
             activeTmp.alignment = TextAlignmentOptions.Center;
 
             // 3. Botones interactivos (con Button + BoxCollider para click o disparo)
-            Button btnSequence = CreateMenuButton(canvasObj.transform, "Btn_Circuit_Sequence", new Vector2(0f, 260f), "🏆 CIRCUITO OLÍMPICO (SECUENCIA COMPLETA)", new Color(0.38f, 0.28f, 0.05f), new Color(1f, 0.88f, 0.2f));
-            Button btnPistol = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Pistol", new Vector2(0f, 140f), "🔫 1. PISTOLA RÁPIDA (Pared Dinámica 60s)", new Color(0.12f, 0.34f, 0.22f), Color.green);
-            Button btnRifle = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Rifle", new Vector2(0f, 20f), "🎯 2. RIFLE DE PRECISIÓN (10m - 25m - 50m)", new Color(0.12f, 0.24f, 0.38f), Color.cyan);
-            Button btnShotgun = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Shotgun", new Vector2(0f, -100f), "💥 3. TIRO AL PLATO (Escopeta Skeet / Trap)", new Color(0.38f, 0.22f, 0.12f), new Color(1f, 0.6f, 0.1f));
-            Button btnRestart = CreateMenuButton(canvasObj.transform, "Btn_Restart_Round", new Vector2(0f, -220f), "🔄 REINICIAR SERIE / RONDA", new Color(0.38f, 0.12f, 0.15f), Color.white);
+            Button btnSequence = CreateMenuButton(canvasObj.transform, "Btn_Circuit_Sequence", new Vector2(0f, 260f), "CIRCUITO OLIMPICO (SECUENCIA COMPLETA)", new Color(0.38f, 0.28f, 0.05f), new Color(1f, 0.88f, 0.2f));
+            Button btnPistol = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Pistol", new Vector2(0f, 140f), "1. PISTOLA RAPIDA (Pared Dinamica 60s)", new Color(0.12f, 0.34f, 0.22f), Color.green);
+            Button btnRifle = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Rifle", new Vector2(0f, 20f), "2. RIFLE DE PRECISION (10m - 25m - 50m)", new Color(0.12f, 0.24f, 0.38f), Color.cyan);
+            Button btnShotgun = CreateMenuButton(canvasObj.transform, "Btn_Discipline_Shotgun", new Vector2(0f, -100f), "3. TIRO AL PLATO (Escopeta Skeet / Trap)", new Color(0.38f, 0.22f, 0.12f), new Color(1f, 0.6f, 0.1f));
+            Button btnRestart = CreateMenuButton(canvasObj.transform, "Btn_Restart_Round", new Vector2(0f, -220f), "REINICIAR SERIE / RONDA", new Color(0.38f, 0.12f, 0.15f), Color.white);
 
             // 4. Scoreboard de la serie actual
             GameObject scoreObj = new GameObject("ScoreBoardText");
@@ -1009,7 +1103,7 @@ namespace Tiro.Editor
             var recordsTmp = recordsObj.AddComponent<TextMeshProUGUI>();
             recordsTmp.rectTransform.anchoredPosition = new Vector2(0f, -460f);
             recordsTmp.rectTransform.sizeDelta = new Vector2(950f, 110f);
-            recordsTmp.text = "RÉCORDS:\n🎯 Rifle: 0 pts  |  🔫 Pistola: 0 pts  |  💥 Plato: 0 pts";
+            recordsTmp.text = "RECORDS:\nRifle: 0 pts  |  Pistola: 0 pts  |  Plato: 0 pts";
             recordsTmp.fontSize = 28;
             recordsTmp.alignment = TextAlignmentOptions.Center;
             recordsTmp.color = new Color(0.85f, 0.85f, 0.85f);

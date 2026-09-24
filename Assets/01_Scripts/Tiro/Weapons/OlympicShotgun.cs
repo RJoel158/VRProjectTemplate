@@ -316,8 +316,9 @@ namespace Tiro.Weapons
                 {
                     hitPoint = hit.point;
 
-                    // Dianas y siluetas
+                    // Dianas y modelos de objetivos con MeshCollider
                     var target = hit.collider.GetComponentInParent<TargetBoard>();
+                    if (target == null) target = hit.collider.GetComponent<TargetBoard>();
                     if (target != null)
                     {
                         target.RegisterBulletHit(hit.point, hit.normal);
@@ -346,7 +347,7 @@ namespace Tiro.Weapons
                     }
                 }
 
-                if (i % 2 == 0) // Renderizar trazadores visuales de perdigones
+                if (gameObject.activeInHierarchy && i % 2 == 0) // Renderizar trazadores visuales de perdigones
                 {
                     StartCoroutine(RenderPelletTracer(origin, hitPoint));
                 }

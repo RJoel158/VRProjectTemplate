@@ -170,7 +170,7 @@ namespace Tiro.UI
         {
             if (recordText == null || rangeManager == null || rangeManager.SaveData == null) return;
             var data = rangeManager.SaveData;
-            recordText.text = $"Récord: {data.highestScore} pts | Bullseyes: {data.totalBullseyes} | 🥇{data.goldMedals} 🥈{data.silverMedals} 🥉{data.bronzeMedals}";
+            recordText.text = $"Record: {data.highestScore} pts | Bullseyes: {data.totalBullseyes} | Oro: {data.goldMedals}  Plata: {data.silverMedals}  Bronce: {data.bronzeMedals}";
         }
     }
 }

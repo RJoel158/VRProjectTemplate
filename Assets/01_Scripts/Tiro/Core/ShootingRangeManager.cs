@@ -143,7 +143,11 @@ namespace Tiro.Core
 
             foreach (var t in targets)
             {
-                if (t != null) t.OnHitScored += HandleTargetHit;
+                if (t != null)
+                {
+                    t.OnHitScored += HandleTargetHit;
+                    t.OnTargetKnockedDown += HandleTargetKnockedDown;
+                }
             }
 
             // Auto-detectar armas
@@ -177,7 +181,11 @@ namespace Tiro.Core
         {
             foreach (var t in targets)
             {
-                if (t != null) t.OnHitScored -= HandleTargetHit;
+                if (t != null)
+                {
+                    t.OnHitScored -= HandleTargetHit;
+                    t.OnTargetKnockedDown -= HandleTargetKnockedDown;
+                }
             }
 
             if (wallGallery != null)
@@ -221,20 +229,30 @@ namespace Tiro.Core
         {
             activeDiscipline = discipline;
 
-            // 1. Activar arma correspondiente y desactivar las otras
-            if (rifle != null) rifle.gameObject.SetActive(discipline == ShootingDiscipline.OlympicRifleDistance);
-            if (pistol != null) pistol.gameObject.SetActive(discipline == ShootingDiscipline.DynamicPistolWall);
-            if (shotgun != null) shotgun.gameObject.SetActive(discipline == ShootingDiscipline.ClayPigeonShotgun);
+            // 1. Activar arma correspondiente y desactivar las otras limpiamente
+            if (rifle != null)
+            {
+                bool activate = discipline == ShootingDiscipline.OlympicRifleDistance;
+                rifle.gameObject.SetActive(activate);
+                if (activate) rifle.BindToRightHand();
+            }
+            if (pistol != null)
+            {
+                bool activate = discipline == ShootingDiscipline.DynamicPistolWall;
+                pistol.gameObject.SetActive(activate);
+                if (activate) pistol.BindToRightHand();
+            }
+            if (shotgun != null)
+            {
+                bool activate = discipline == ShootingDiscipline.ClayPigeonShotgun;
+                shotgun.gameObject.SetActive(activate);
+                if (activate) shotgun.BindToRightHand();
+            }
 
-            // Re-vincular arma activa a la mano del jugador
-            if (discipline == ShootingDiscipline.OlympicRifleDistance && rifle != null) rifle.BindToRightHand();
-            if (discipline == ShootingDiscipline.DynamicPistolWall && pistol != null) pistol.BindToRightHand();
-            if (discipline == ShootingDiscipline.ClayPigeonShotgun && shotgun != null) shotgun.BindToRightHand();
-
-            // 2. Activar/Desactivar sistemas de dianas correspondientes
+            // 2. Mantener las dianas del polígono siempre visibles para que el usuario pueda dispararles
             if (distanceTargetsRoot != null)
             {
-                distanceTargetsRoot.SetActive(discipline == ShootingDiscipline.OlympicRifleDistance);
+                distanceTargetsRoot.SetActive(true);
             }
 
             if (wallGallery != null)
@@ -313,16 +331,16 @@ namespace Tiro.Core
 
         private void HandleTargetHit(TargetBoard target, int score, bool isBullseye, Vector3 hitPoint)
         {
+            if (ScoreManager.Instance != null && score > 0)
+            {
+                ScoreManager.Instance.AddPoints(score * 10);
+            }
+
             if (!seriesActive || activeDiscipline != ShootingDiscipline.OlympicRifleDistance) return;
 
             shotsFiredInSeries++;
             currentSeriesScore += score;
             if (isBullseye) bullseyesInSeries++;
-
-            if (ScoreManager.Instance != null && score > 0)
-            {
-                ScoreManager.Instance.AddPoints(score * 10);
-            }
 
             int maxShots = config != null ? config.shotsPerSeries : 10;
             OnScoreUpdated?.Invoke(currentSeriesScore, shotsFiredInSeries, maxShots);
@@ -331,6 +349,51 @@ namespace Tiro.Core
             if (shotsFiredInSeries >= maxShots)
             {
                 CompleteSeries(timeExpired: false);
+            }
+        }
+
+        private void HandleTargetKnockedDown(TargetBoard knockedTarget)
+        {
+            if (targets == null || targets.Count == 0) return;
+
+            // Encontrar la posición de la diana abatida en la lista ordenada
+            int index = targets.IndexOf(knockedTarget);
+            if (index < 0) return;
+
+            // La siguiente diana en la rotación progresiva (10m -> 25m -> 50m -> 10m...)
+            int nextIndex = (index + 1) % targets.Count;
+
+            // Si la siguiente diana ya estaba abatida, o si ninguna otra diana está en pie,
+            // levantar la siguiente diana progresivamente
+            if (targets[nextIndex] != null && targets[nextIndex].IsKnockedDown)
+            {
+                StartCoroutine(RaiseTargetDelayed(targets[nextIndex], 0.7f));
+            }
+            else
+            {
+                bool anyUp = false;
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    if (targets[i] != null && !targets[i].IsKnockedDown)
+                    {
+                        anyUp = true;
+                        break;
+                    }
+                }
+
+                if (!anyUp && targets[nextIndex] != null)
+                {
+                    StartCoroutine(RaiseTargetDelayed(targets[nextIndex], 0.7f));
+                }
+            }
+        }
+
+        private IEnumerator RaiseTargetDelayed(TargetBoard target, float delay)
+        {
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+            if (target != null && target.IsKnockedDown)
+            {
+                target.ResetTarget();
             }
         }
 
@@ -416,17 +479,17 @@ namespace Tiro.Core
             string medal = "Sin Medalla";
             if (currentSeriesScore >= gold)
             {
-                medal = "¡MEDALLA DE ORO OLÍMPICA! 🥇";
+                medal = "¡MEDALLA DE ORO OLIMPICA!";
                 if (currentSaveData != null) currentSaveData.goldMedals++;
             }
             else if (currentSeriesScore >= silver)
             {
-                medal = "¡MEDALLA DE PLATA OLÍMPICA! 🥈";
+                medal = "¡MEDALLA DE PLATA OLIMPICA!";
                 if (currentSaveData != null) currentSaveData.silverMedals++;
             }
             else if (currentSeriesScore >= bronze)
             {
-                medal = "¡MEDALLA DE BRONCE OLÍMPICA! 🥉";
+                medal = "¡MEDALLA DE BRONCE OLIMPICA!";
                 if (currentSaveData != null) currentSaveData.bronzeMedals++;
             }
 
@@ -463,31 +526,31 @@ namespace Tiro.Core
 
                 if (activeDiscipline == ShootingDiscipline.DynamicPistolWall)
                 {
-                    OnSeriesFinished?.Invoke($"¡FASE 1 (PISTOLA) COMPLETADA! +{currentSeriesScore} pts\nPreparando Rifle de Precisión en 3s...", sequenceTotalScore, "🏆 CIRCUITO OLÍMPICO");
+                    OnSeriesFinished?.Invoke($"¡FASE 1 (PISTOLA) COMPLETADA! +{currentSeriesScore} pts\nPreparando Rifle de Precision en 3s...", sequenceTotalScore, "CIRCUITO OLIMPICO");
                     sequenceTransitionRoutine = StartCoroutine(SequenceTransitionRoutine(ShootingDiscipline.OlympicRifleDistance, 3.5f));
                     return;
                 }
                 else if (activeDiscipline == ShootingDiscipline.OlympicRifleDistance)
                 {
-                    OnSeriesFinished?.Invoke($"¡FASE 2 (RIFLE) COMPLETADA! +{currentSeriesScore} pts\nPreparando Tiro al Plato en 3s...", sequenceTotalScore, "🏆 CIRCUITO OLÍMPICO");
+                    OnSeriesFinished?.Invoke($"¡FASE 2 (RIFLE) COMPLETADA! +{currentSeriesScore} pts\nPreparando Tiro al Plato en 3s...", sequenceTotalScore, "CIRCUITO OLIMPICO");
                     sequenceTransitionRoutine = StartCoroutine(SequenceTransitionRoutine(ShootingDiscipline.ClayPigeonShotgun, 3.5f));
                     return;
                 }
                 else if (activeDiscipline == ShootingDiscipline.ClayPigeonShotgun)
                 {
                     isSequenceMode = false;
-                    string circuitMedal = sequenceTotalScore >= 200 ? "¡GRAN CAMPEÓN OLÍMPICO! 🥇 ORO" : (sequenceTotalScore >= 140 ? "¡SUBCAMPEÓN OLÍMPICO! 🥈 PLATA" : "¡BRONCE OLÍMPICO! 🥉");
-                    OnSeriesFinished?.Invoke($"¡CIRCUITO OLÍMPICO COMPLETADO!\nPUNTUACIÓN COMBINADA: {sequenceTotalScore} pts", sequenceTotalScore, circuitMedal);
+                    string circuitMedal = sequenceTotalScore >= 200 ? "¡GRAN CAMPEON OLIMPICO! ORO" : (sequenceTotalScore >= 140 ? "¡SUBCAMPEON OLIMPICO! PLATA" : "¡BRONCE OLIMPICO!");
+                    OnSeriesFinished?.Invoke($"¡CIRCUITO OLIMPICO COMPLETADO!\nPUNTUACION COMBINADA: {sequenceTotalScore} pts", sequenceTotalScore, circuitMedal);
                     return;
                 }
             }
 
-            string disciplineName = activeDiscipline == ShootingDiscipline.OlympicRifleDistance ? "Rifle de Precisión"
-                : (activeDiscipline == ShootingDiscipline.DynamicPistolWall ? "Pistola Rápida" : "Tiro al Plato");
+            string disciplineName = activeDiscipline == ShootingDiscipline.OlympicRifleDistance ? "Rifle de Precision"
+                : (activeDiscipline == ShootingDiscipline.DynamicPistolWall ? "Pistola Rapida" : "Tiro al Plato");
 
             string msg = timeExpired
-                ? $"¡Tiempo Agotado en {disciplineName}! Puntuación: {currentSeriesScore} pts."
-                : $"¡Ronda de {disciplineName} Completada! Puntuación: {currentSeriesScore} pts.";
+                ? $"¡Tiempo Agotado en {disciplineName}! Puntuacion: {currentSeriesScore} pts."
+                : $"¡Ronda de {disciplineName} Completada! Puntuacion: {currentSeriesScore} pts.";
 
             OnSeriesFinished?.Invoke(msg, currentSeriesScore, medal);
         }

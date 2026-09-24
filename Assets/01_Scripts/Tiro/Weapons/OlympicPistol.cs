@@ -465,8 +465,9 @@ namespace Tiro.Weapons
                     clay.RegisterShotHit(hit.point, direction);
                 }
 
-                // 3. Dianas olímpicas concéntricas fijas
+                // 3. Dianas olímpicas y modelos de objetivos con MeshCollider
                 TargetBoard targetBoard = hit.collider.GetComponentInParent<TargetBoard>();
+                if (targetBoard == null) targetBoard = hit.collider.GetComponent<TargetBoard>();
                 if (targetBoard != null)
                 {
                     hitTarget = true;
@@ -489,7 +490,10 @@ namespace Tiro.Weapons
             }
 
             // 2. Trazador de bala
-            StartCoroutine(RenderBulletTracer(origin, targetHitPoint));
+            if (gameObject.activeInHierarchy)
+            {
+                StartCoroutine(RenderBulletTracer(origin, targetHitPoint));
+            }
 
             // 3. Fogonazo y Audio
             if (muzzleFlashParticles != null)
@@ -500,7 +504,10 @@ namespace Tiro.Weapons
             ShootingAudioManager.PlayGunshot(Core.ShootingDiscipline.DynamicPistolWall, pistolData != null ? pistolData.gunshotSound : null);
 
             // 4. Retroceso de corredera y cabeceo
-            StartCoroutine(AnimateRecoil());
+            if (gameObject.activeInHierarchy)
+            {
+                StartCoroutine(AnimateRecoil());
+            }
 
             // 5. Vibración háptica en el mando Oculus
             TriggerHaptics();
