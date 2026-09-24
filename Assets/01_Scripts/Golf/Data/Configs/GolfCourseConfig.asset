@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 104cb0453ba05a24893da4a9d89f7da3, type: 3}
+  m_Name: GolfCourseConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Golf.Data.GolfCourseConfigSO
+  courseName: Golf It! Resort Minigolf
+  description: Circuito de 3 hoyos con fisicas de rebote en madera, rampas y molino.
+  holes:
+  - {fileID: 11400000, guid: b50e003d8491dd446a651abd80913166, type: 2}
+  - {fileID: 11400000, guid: 00f473fc93ccf6e40bd26f0e858b7e88, type: 2}
+  - {fileID: 11400000, guid: 8038dcc4aea864b41bf706cfca667593, type: 2}

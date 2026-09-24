@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 41e03969445cc9b4794bd1c983a81a6a, type: 3}
+  m_Name: PutterConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Golf.Data.PutterDataSO
+  shaftLength: 0.88
+  headMass: 0.35
+  impulseMultiplier: 1.35
+  maxBallVelocity: 14
+  minImpactVelocity: 0.12
+  minHapticAmplitude: 0.25
+  maxHapticAmplitude: 0.85
+  hapticDuration: 0.08
+  showAimLine: 1
+  aimLineDistance: 2.5
