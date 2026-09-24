@@ -69,7 +69,7 @@ public class MainMenuManager : MonoBehaviour
         if (UnityEditor.EditorUtility.audioMasterMute)
         {
             UnityEditor.EditorUtility.audioMasterMute = false;
-            Debug.Log("[MainMenuManager] 🔊 Editor desmuteado automáticamente.");
+            Debug.Log("[MainMenuManager] Editor desmuteado automaticamente.");
         }
 #endif
 
@@ -91,12 +91,12 @@ public class MainMenuManager : MonoBehaviour
             if (cam != null)
             {
                 cam.gameObject.AddComponent<AudioListener>();
-                Debug.Log($"[MainMenuManager] 🔊 AudioListener añadido a la cámara {cam.name}.");
+                Debug.Log($"[MainMenuManager] AudioListener añadido a la camara {cam.name}.");
             }
             else
             {
                 gameObject.AddComponent<AudioListener>();
-                Debug.Log("[MainMenuManager] 🔊 AudioListener añadido a MainMenuManager.");
+                Debug.Log("[MainMenuManager] AudioListener añadido a MainMenuManager.");
             }
         }
         else
@@ -186,7 +186,7 @@ public class MainMenuManager : MonoBehaviour
                 musicSource.volume = musicVolume;
                 musicSource.loop = true;
                 musicSource.Play();
-                Debug.Log("[MainMenuManager] 🎵 Música de fondo iniciada.");
+                Debug.Log("[MainMenuManager] Musica de fondo iniciada.");
             }
         }
     }

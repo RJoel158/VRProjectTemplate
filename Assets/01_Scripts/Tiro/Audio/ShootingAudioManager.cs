@@ -27,11 +27,14 @@ namespace Tiro.Audio
         }
 
         private static AudioSource audioSource2D;
+        private static AudioSource bgmAudioSource;
         private static AudioListener verifiedListener;
 
         private static AudioClip clipShootPop;
         private static AudioClip clipReloadRack;
         private static AudioClip clipWiiClick;
+        private static AudioClip clipBgmTheme;
+        private static AudioClip clipKnockdown;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void OnBeforeSceneLoad()
@@ -44,6 +47,7 @@ namespace Tiro.Audio
         {
             EnsureManagerExists();
             EnsureAudioSystemActive();
+            PlayBackgroundMusic();
         }
 
         public static void EnsureManagerExists()
@@ -61,6 +65,7 @@ namespace Tiro.Audio
             instance.SetupAudioSource();
             LoadDefaultClips();
             EnsureAudioSystemActive();
+            PlayBackgroundMusic();
         }
 
         private void Awake()
@@ -72,6 +77,7 @@ namespace Tiro.Audio
                 SetupAudioSource();
                 LoadDefaultClips();
                 EnsureAudioSystemActive();
+                PlayBackgroundMusic();
             }
             else if (instance != this)
             {
@@ -103,6 +109,23 @@ namespace Tiro.Audio
                 audioSource2D.maxDistance = 1000f;
                 audioSource2D.enabled = true;
             }
+
+            if (bgmAudioSource == null)
+            {
+                var sources = GetComponents<AudioSource>();
+                if (sources.Length > 1) bgmAudioSource = sources[1];
+                else bgmAudioSource = gameObject.AddComponent<AudioSource>();
+
+                bgmAudioSource.spatialBlend = 0f; // 100% 2D estéreo
+                bgmAudioSource.volume = 0.35f; // Volumen ambiente confortable
+                bgmAudioSource.loop = true;
+                bgmAudioSource.playOnAwake = false;
+                bgmAudioSource.bypassEffects = true;
+                bgmAudioSource.bypassListenerEffects = true;
+                bgmAudioSource.bypassReverbZones = true;
+                bgmAudioSource.ignoreListenerPause = true;
+                bgmAudioSource.enabled = true;
+            }
         }
 
         private static void LoadDefaultClips()
@@ -120,11 +143,50 @@ namespace Tiro.Audio
             {
                 clipWiiClick = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/WiiClick.mp3");
             }
+            if (clipBgmTheme == null)
+            {
+                clipBgmTheme = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/Nintendo Wii - Mii Channel Theme.mp3");
+            }
+            if (clipKnockdown == null)
+            {
+                clipKnockdown = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/bowling-one-pin-free-sound-effectsmp3-160k-1_dOlvwnca.mp3");
+            }
 #endif
             // Fallback procedurale inmediato e infalible
             if (clipShootPop == null) clipShootPop = ShootingSoundFX.GetGunshotRifle();
             if (clipReloadRack == null) clipReloadRack = ShootingSoundFX.GetReloadSound();
             if (clipWiiClick == null) clipWiiClick = ShootingSoundFX.GetDryFireSound();
+        }
+
+        public static void PlayBackgroundMusic(AudioClip clip = null, float volume = 0.35f)
+        {
+            EnsureManagerExists();
+            if (bgmAudioSource == null) return;
+
+            if (clip != null) clipBgmTheme = clip;
+            if (clipBgmTheme == null) LoadDefaultClips();
+
+            if (clipBgmTheme != null)
+            {
+                if (bgmAudioSource.clip != clipBgmTheme)
+                {
+                    bgmAudioSource.clip = clipBgmTheme;
+                }
+                bgmAudioSource.volume = volume;
+                bgmAudioSource.loop = true;
+                if (!bgmAudioSource.isPlaying)
+                {
+                    bgmAudioSource.Play();
+                }
+            }
+        }
+
+        public static void StopBackgroundMusic()
+        {
+            if (bgmAudioSource != null && bgmAudioSource.isPlaying)
+            {
+                bgmAudioSource.Stop();
+            }
         }
 
         private void Update()
@@ -133,7 +195,7 @@ namespace Tiro.Audio
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.tKey.wasPressedThisFrame)
             {
-                Debug.Log("[ShootingAudioManager] 🔊 Test disparado con tecla 'T'");
+                Debug.Log("[ShootingAudioManager] Test disparado con tecla 'T'");
                 PlayGunshot(ShootingDiscipline.OlympicRifleDistance);
             }
 #endif
@@ -146,7 +208,7 @@ namespace Tiro.Audio
             if (UnityEditor.EditorUtility.audioMasterMute)
             {
                 UnityEditor.EditorUtility.audioMasterMute = false;
-                Debug.LogWarning("[ShootingAudioManager] ⚠️ 'Mute Audio' estaba activo en Unity Game View. Se ha desmuteado automáticamente.");
+                Debug.LogWarning("[ShootingAudioManager] 'Mute Audio' estaba activo en Unity Game View. Se ha desmuteado automaticamente.");
             }
 #endif
 
@@ -227,7 +289,7 @@ namespace Tiro.Audio
                 AudioSource.PlayClipAtPoint(clip, pos, volume);
             }
 
-            Debug.Log($"[ShootingAudioManager] 🔊 Sonido reproducido: {clip.name} (Vol: {volume})");
+            Debug.Log($"[ShootingAudioManager] Sonido reproducido: {clip.name} (Vol: {volume})");
         }
 
         public static void PlayGunshot(ShootingDiscipline discipline = ShootingDiscipline.OlympicRifleDistance, AudioClip customClip = null)
@@ -273,6 +335,19 @@ namespace Tiro.Audio
         {
             AudioClip clip = ShootingSoundFX.GetTargetHitSound(isBullseye);
             PlaySound(clip, isBullseye ? 1f : 0.75f);
+        }
+
+        public static void PlayTargetKnockdown()
+        {
+            LoadDefaultClips();
+            if (clipKnockdown != null)
+            {
+                PlaySound(clipKnockdown, 0.95f);
+            }
+            else
+            {
+                PlayTargetHit(true);
+            }
         }
 
         public static void PlayClayShatter()
