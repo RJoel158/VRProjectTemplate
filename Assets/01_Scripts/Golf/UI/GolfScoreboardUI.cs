@@ -144,5 +144,31 @@ namespace Golf.UI
                 Golf.Core.GolfCourseManager.Instance.StartCourse();
             }
         }
+
+        /// <summary>
+        /// Posiciona el tablero de puntuaciones en el angulo de vision ideal del jugador
+        /// al inicio de cada hoyo, evitando que quede de perfil o fuera de la vista.
+        /// </summary>
+        public void PositionNearHole(Vector3 teePosition, Vector3 targetDirection)
+        {
+            Vector3 toTarget = targetDirection;
+            toTarget.y = 0f;
+            if (toTarget.sqrMagnitude < 0.001f) toTarget = Vector3.forward;
+            toTarget.Normalize();
+
+            // Ubicar a la izquierda-frente del Tee para no obstruir el tiro ni el movimiento
+            Vector3 leftDir = Vector3.Cross(toTarget, Vector3.up).normalized;
+            Vector3 boardPos = teePosition + leftDir * 2.2f + toTarget * 1.2f + Vector3.up * 1.35f;
+
+            transform.position = boardPos;
+            // Orientar hacia la posicion donde estara el jugador
+            Vector3 lookAtTarget = teePosition + leftDir * 0.45f + Vector3.up * 1.3f;
+            Vector3 forwardDir = (boardPos - lookAtTarget).normalized;
+            forwardDir.y = 0f;
+            if (forwardDir.sqrMagnitude > 0.001f)
+            {
+                transform.rotation = Quaternion.LookRotation(forwardDir);
+            }
+        }
     }
 }
