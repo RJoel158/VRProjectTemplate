@@ -301,7 +301,12 @@ namespace Tiro.Editor
             hudObj.transform.position = new Vector3(-0.65f, 1.05f, 0.85f);
             hudObj.transform.rotation = Quaternion.Euler(15f, 25f, 0f);
 
-            // 10. Manager Central del Polígono de Tiro
+            // 10. Entorno exterior inmersivo de campo abierto (turriles, neumaticos, bosque y rapaces)
+            GameObject envObj = new GameObject("Shooting_Outdoor_Environment");
+            envObj.transform.SetParent(rangeRoot.transform);
+            envObj.AddComponent<Tiro.Environment.ShootingOutdoorEnvironment>();
+
+            // 11. Manager Central del Polígono de Tiro
             GameObject managerObj = new GameObject("ShootingRangeManager");
             var manager = managerObj.AddComponent<ShootingRangeManager>();
 
