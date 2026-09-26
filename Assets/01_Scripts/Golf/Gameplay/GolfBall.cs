@@ -56,8 +56,20 @@ namespace Golf.Gameplay
             if (trailRenderer == null) trailRenderer = GetComponent<TrailRenderer>();
 
             ApplyConfig();
+
+            if (rb != null)
+            {
+                if (!rb.isKinematic)
+                {
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
+                rb.isKinematic = true;
+            }
+
             lastRestPosition = transform.position;
             lastRestRotation = transform.rotation;
+            currentState = BallState.AtRest;
         }
 
         public void ApplyConfig()
@@ -93,29 +105,54 @@ namespace Golf.Gameplay
         {
             if (isRespawning || currentState == BallState.InCup) return;
 
-            float speed = rb.linearVelocity.magnitude;
-
-            // Comprobar si la bola esta en reposo
-            if (currentState == BallState.Rolling || currentState == BallState.Airborne)
+            // Comprobar si la bola esta en rodamiento
+            if (currentState == BallState.Rolling)
             {
-                float threshold = config != null ? config.SleepVelocityThreshold : 0.05f;
+                float speed = rb.linearVelocity.magnitude;
 
-                if (speed <= threshold)
+                // Detectar si la bola está tocando el suelo mediante raycast hacia abajo
+                bool onGround = Physics.Raycast(transform.position, Vector3.down, out RaycastHit groundHit, 0.038f, ~0, QueryTriggerInteraction.Ignore);
+
+                if (onGround)
                 {
-                    restCheckTimer += Time.fixedDeltaTime;
-                    if (restCheckTimer >= MinRestDuration)
+                    // Friccion de rodamiento auténtica sobre césped sintético (deceleración ~1.35 m/s^2)
+                    float decelRate = config != null ? (config.GrassDynamicFriction * 3.8f) : 1.35f;
+                    float frictionDecel = decelRate * Time.fixedDeltaTime;
+
+                    Vector3 currentLinear = rb.linearVelocity;
+                    Vector3 horiz = new Vector3(currentLinear.x, 0f, currentLinear.z);
+                    Vector3 slowedHoriz = Vector3.MoveTowards(horiz, Vector3.zero, frictionDecel);
+                    rb.linearVelocity = new Vector3(slowedHoriz.x, currentLinear.y, slowedHoriz.z);
+
+                    // Amortiguación angular para rodamiento suave y realista
+                    rb.angularVelocity = Vector3.MoveTowards(rb.angularVelocity, Vector3.zero, 3.0f * Time.fixedDeltaTime);
+
+                    float threshold = config != null ? config.SleepVelocityThreshold : 0.04f;
+                    float slopeAngle = Vector3.Angle(groundHit.normal, Vector3.up);
+
+                    // Solo entrar en reposo si la velocidad es muy baja y el terreno no tiene pendiente marcada (> 5 grados)
+                    if (speed <= threshold && slopeAngle < 5f)
                     {
-                        SetAtRest();
+                        restCheckTimer += Time.fixedDeltaTime;
+                        if (restCheckTimer >= MinRestDuration)
+                        {
+                            SetAtRest();
+                        }
+                    }
+                    else
+                    {
+                        restCheckTimer = 0f;
                     }
                 }
                 else
                 {
+                    // En el aire (saltos o baches), la gravedad física pura actúa normalmente
                     restCheckTimer = 0f;
                 }
             }
 
             // Comprobar limite de caida al vacio / agua
-            if (transform.position.y < -5f && currentState != BallState.OutOfBounds)
+            if (transform.position.y < -1f && currentState != BallState.OutOfBounds && currentState != BallState.InCup)
             {
                 TriggerOutOfBounds();
             }
@@ -132,25 +169,45 @@ namespace Golf.Gameplay
             lastRestPosition = transform.position;
             lastRestRotation = transform.rotation;
 
-            rb.isKinematic = false;
-            rb.linearVelocity = velocity;
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.linearVelocity = velocity;
+
+                // Transmitir velocidad angular inmediata para inicio de rodamiento puro
+                Vector3 rollAxis = Vector3.Cross(Vector3.up, velocity.normalized);
+                float ballRadius = sphereCollider != null ? sphereCollider.radius * transform.lossyScale.x : 0.0225f;
+                if (ballRadius > 0.001f)
+                {
+                    rb.angularVelocity = rollAxis * (velocity.magnitude / ballRadius);
+                }
+            }
             currentState = BallState.Rolling;
             restCheckTimer = 0f;
 
             if (trailRenderer != null) trailRenderer.Clear();
 
+            Debug.Log($"[GolfBall] Tiro recibido: velocidad = {velocity.magnitude:F2} m/s, dir = {velocity.normalized}");
             OnBallHit?.Invoke(this, velocity);
         }
 
         public void SetAtRest()
         {
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
+            if (rb != null)
+            {
+                if (!rb.isKinematic)
+                {
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
+                rb.isKinematic = true;
+            }
             currentState = BallState.AtRest;
             restCheckTimer = 0f;
             lastRestPosition = transform.position;
             lastRestRotation = transform.rotation;
 
+            Debug.Log($"[GolfBall] Pelota detenida en reposo en: {transform.position}");
             OnBallStopped?.Invoke(this, transform.position);
         }
 
@@ -168,9 +225,12 @@ namespace Golf.Gameplay
         private IEnumerator RespawnRoutine()
         {
             isRespawning = true;
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-            rb.isKinematic = true;
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.isKinematic = true;
+            }
 
             yield return new WaitForSeconds(0.8f);
 
@@ -178,7 +238,6 @@ namespace Golf.Gameplay
             transform.position = lastRestPosition + Vector3.up * 0.02f;
             transform.rotation = lastRestRotation;
 
-            rb.isKinematic = false;
             currentState = BallState.AtRest;
             isRespawning = false;
             restCheckTimer = 0f;
@@ -223,9 +282,15 @@ namespace Golf.Gameplay
         {
             StopAllCoroutines();
             isRespawning = false;
-            rb.isKinematic = false;
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
+            if (rb != null)
+            {
+                if (!rb.isKinematic)
+                {
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
+                rb.isKinematic = true;
+            }
             transform.position = newPosition;
             transform.rotation = newRotation;
             lastRestPosition = newPosition;
@@ -234,11 +299,22 @@ namespace Golf.Gameplay
             restCheckTimer = 0f;
 
             if (trailRenderer != null) trailRenderer.Clear();
+            Debug.Log($"[GolfBall] Bola posicionada y fijada en reposo en {newPosition}");
         }
 
         private void OnCollisionEnter(Collision collision)
         {
             if (isRespawning || currentState == BallState.InCup) return;
+
+            string cName = collision.gameObject.name.ToLower();
+            string cTag = collision.gameObject.tag;
+
+            // Detección de caída fuera de la pista (patio exterior, agua o zona no delimitada)
+            if (cName.Contains("patio") || cName.Contains("ocean") || cName.Contains("water") || cTag == "OutOfBounds" || cTag == "Floor")
+            {
+                TriggerOutOfBounds();
+                return;
+            }
 
             // Deteccion de rebote contra maderas o bordes
             float impactSpeed = collision.relativeVelocity.magnitude;
