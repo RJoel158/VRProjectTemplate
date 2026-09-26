@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Tiro.Core;
 
 namespace Tiro.Audio
@@ -36,29 +37,53 @@ namespace Tiro.Audio
         private static AudioClip clipBgmTheme;
         private static AudioClip clipKnockdown;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-        private static void OnBeforeSceneLoad()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void InitializeSceneAudioWatcher()
         {
-            EnsureManagerExists();
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            CheckSceneAndManageAudio(SceneManager.GetActiveScene());
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void OnAfterSceneLoad()
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            EnsureManagerExists();
-            EnsureAudioSystemActive();
-            PlayBackgroundMusic();
+            CheckSceneAndManageAudio(scene);
+        }
+
+        private static void CheckSceneAndManageAudio(Scene scene)
+        {
+            bool isShooting = scene.name.IndexOf("Shooting", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (isShooting)
+            {
+                EnsureManagerExists();
+                EnsureAudioSystemActive();
+                PlayBackgroundMusic();
+            }
+            else
+            {
+                StopBackgroundMusic();
+                if (instance != null)
+                {
+                    Destroy(instance.gameObject);
+                    instance = null;
+                }
+            }
         }
 
         public static void EnsureManagerExists()
         {
             if (instance != null) return;
 
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (activeScene.name.IndexOf("Shooting", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                return;
+            }
+
             instance = FindAnyObjectByType<ShootingAudioManager>();
             if (instance == null)
             {
-                GameObject go = new GameObject("[ShootingAudioManager_Global]");
-                DontDestroyOnLoad(go);
+                GameObject go = new GameObject("[ShootingAudioManager]");
                 instance = go.AddComponent<ShootingAudioManager>();
             }
 
@@ -70,10 +95,16 @@ namespace Tiro.Audio
 
         private void Awake()
         {
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (activeScene.name.IndexOf("Shooting", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
             if (instance == null)
             {
                 instance = this;
-                DontDestroyOnLoad(gameObject);
                 SetupAudioSource();
                 LoadDefaultClips();
                 EnsureAudioSystemActive();
@@ -82,6 +113,15 @@ namespace Tiro.Audio
             else if (instance != this)
             {
                 Destroy(gameObject);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            StopBackgroundMusic();
+            if (instance == this)
+            {
+                instance = null;
             }
         }
 
@@ -160,6 +200,12 @@ namespace Tiro.Audio
 
         public static void PlayBackgroundMusic(AudioClip clip = null, float volume = 0.35f)
         {
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (activeScene.name.IndexOf("Shooting", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                return;
+            }
+
             EnsureManagerExists();
             if (bgmAudioSource == null) return;
 

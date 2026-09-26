@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Golf.Audio
 {
@@ -34,8 +35,48 @@ namespace Golf.Audio
         [SerializeField] private AudioClip customCupSinkClip;
         [SerializeField] private AudioClip customWoodBounceClip;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void InitializeGolfAudioWatcher()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            CheckSceneAndManageAudio(SceneManager.GetActiveScene());
+        }
+
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            CheckSceneAndManageAudio(scene);
+        }
+
+        private static void CheckSceneAndManageAudio(Scene scene)
+        {
+            bool isGolf = scene.name.IndexOf("Golf", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (isGolf)
+            {
+                EnsureManagerExists();
+                EnsureAudioSystemActive();
+                PlayBackgroundMusic();
+            }
+            else
+            {
+                StopBackgroundMusic();
+                if (instance != null)
+                {
+                    Destroy(instance.gameObject);
+                    instance = null;
+                }
+            }
+        }
+
         private void Awake()
         {
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (activeScene.name.IndexOf("Golf", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
             if (instance == null)
             {
                 instance = this;
@@ -49,14 +90,29 @@ namespace Golf.Audio
             PlayBackgroundMusic();
         }
 
+        private void OnDestroy()
+        {
+            StopBackgroundMusic();
+            if (instance == this)
+            {
+                instance = null;
+            }
+        }
+
         public static void EnsureManagerExists()
         {
             if (instance != null) return;
 
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (activeScene.name.IndexOf("Golf", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                return;
+            }
+
             instance = FindAnyObjectByType<GolfAudioManager>();
             if (instance == null)
             {
-                GameObject go = new GameObject("[GolfAudioManager_Global]");
+                GameObject go = new GameObject("[GolfAudioManager]");
                 instance = go.AddComponent<GolfAudioManager>();
             }
 
@@ -98,11 +154,11 @@ namespace Golf.Audio
 #if UNITY_EDITOR
             if (customBgmClip == null)
             {
-                // Cargar musica relajante de Nintendo / Resort si existe en el proyecto
-                customBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/Wii Menu Music 4K(MP3_160K).mp3");
+                // Cargar musica del canal Mii / Wii para la escena de Golf
+                customBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/Nintendo Wii - Mii Channel Theme.mp3");
                 if (customBgmClip == null)
                 {
-                    customBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/Nintendo Wii - Mii Channel Theme.mp3");
+                    customBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/Wii Menu Music 4K(MP3_160K).mp3");
                 }
             }
             if (customWoodBounceClip == null)
@@ -141,6 +197,12 @@ namespace Golf.Audio
 
         public static void PlayBackgroundMusic(AudioClip clip = null, float volume = 0.35f)
         {
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (activeScene.name.IndexOf("Golf", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                return;
+            }
+
             EnsureManagerExists();
             if (bgmSource == null) return;
 
