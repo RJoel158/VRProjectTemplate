@@ -65,6 +65,11 @@ namespace Golf.Editor
 
             // 6. Construccion de los 3 Hoyos de Minigolf
             GameObject courseRoot = new GameObject("Minigolf_Course_Root");
+
+            // Entorno y atmosfera de laguna costera con gaviotas e islotes
+            GameObject envObj = new GameObject("Golf_Lagoon_Environment");
+            envObj.AddComponent<Golf.Environment.GolfLagoonEnvironment>();
+
             List<HoleRuntimeInstance> holeInstances = new List<HoleRuntimeInstance>();
 
             // Hoyo 1: Curva Verde (Par 2)
@@ -95,6 +100,7 @@ namespace Golf.Editor
             so.FindProperty("putter").objectReferenceValue = putterObj.GetComponent<GolfPutter>();
             if (xrOrigin != null) so.FindProperty("xrOrigin").objectReferenceValue = xrOrigin.transform;
             so.FindProperty("scoreboardUI").objectReferenceValue = scoreboardObj.GetComponent<GolfScoreboardUI>();
+            so.FindProperty("sessionProgress").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GolfProgressSO>("Assets/01_Scripts/Golf/Data/Configs/GolfProgressData.asset");
 
             var holesProp = so.FindProperty("holeInstances");
             holesProp.ClearArray();
@@ -269,17 +275,23 @@ namespace Golf.Editor
             return mat;
         }
 
+        private const string ControllerRigGuid = "f6336ac4ac8b4d34bc5072418cdc62a0";
+        private const string PauseMenuGuid = "fb0fc33f728c20c4da4e60734a5f1a43";
+
         private static GameObject SetupXROrigin()
         {
-            // Intentar clonar el prefab de manos existente o crear el XR Origin basico
-            string prefabPath = "Assets/Samples/XR Interaction Toolkit/3.5.1/Hands Interaction Demo/Prefabs/XR Origin Hands (XR Rig).prefab";
-            GameObject originPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-            GameObject originInstance = null;
+            string rigPath = AssetDatabase.GUIDToAssetPath(ControllerRigGuid);
+            GameObject originPrefab = !string.IsNullOrEmpty(rigPath) ? AssetDatabase.LoadAssetAtPath<GameObject>(rigPath) : null;
+            if (originPrefab == null)
+            {
+                originPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Samples/XR Interaction Toolkit/3.5.1/Hands Interaction Demo/Prefabs/XR Origin Hands (XR Rig).prefab");
+            }
 
+            GameObject originInstance = null;
             if (originPrefab != null)
             {
                 originInstance = (GameObject)PrefabUtility.InstantiatePrefab(originPrefab);
-                originInstance.name = "XR Origin Hands (XR Rig)";
+                originInstance.name = "XR Origin (XR Rig)";
             }
             else
             {
@@ -292,7 +304,20 @@ namespace Golf.Editor
                 camObj.AddComponent<AudioListener>();
             }
 
-            originInstance.transform.position = new Vector3(-0.4f, 0f, -0.2f);
+            originInstance.transform.position = new Vector3(-0.45f, 0f, 0.12f);
+            originInstance.transform.rotation = Quaternion.identity;
+
+            // Instanciar PauseMenuCanvas
+            string pauseMenuPath = AssetDatabase.GUIDToAssetPath(PauseMenuGuid);
+            if (!string.IsNullOrEmpty(pauseMenuPath))
+            {
+                var pausePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(pauseMenuPath);
+                if (pausePrefab != null)
+                {
+                    PrefabUtility.InstantiatePrefab(pausePrefab);
+                }
+            }
+
             return originInstance;
         }
 
@@ -301,7 +326,8 @@ namespace Golf.Editor
             GameObject ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             ball.name = "GolfBall";
             ball.transform.localScale = Vector3.one * 0.045f;
-            ball.transform.position = new Vector3(0f, 0.03f, 0f);
+            // Posicionar en el Tee del Hoyo 1 sobre el cesped (suelo = 0.05, radio = 0.0225 -> Y = 0.075f)
+            ball.transform.position = new Vector3(0f, 0.075f, 0.2f);
 
             ball.GetComponent<Renderer>().sharedMaterial = ballMat;
             var sphereCol = ball.GetComponent<SphereCollider>();
@@ -311,6 +337,7 @@ namespace Golf.Editor
             rb.mass = 0.046f;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
+            rb.isKinematic = true;
 
             var trail = ball.AddComponent<TrailRenderer>();
             trail.startWidth = 0.02f;
@@ -329,34 +356,35 @@ namespace Golf.Editor
 
         private static GameObject CreateGolfPutter(PutterDataSO putterSO, Material putterMat, GolfBall ball)
         {
+            // El pivote raiz se coloca en la empuñadura (donde la mano sostiene el palo)
             GameObject putterRoot = new GameObject("GolfPutter_VR");
-            putterRoot.transform.position = new Vector3(-0.15f, 0.65f, 0f);
+            putterRoot.transform.position = new Vector3(-0.15f, 0.85f, 0.15f);
 
-            // Vara / Shaft
-            GameObject shaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            shaft.name = "Shaft";
-            shaft.transform.SetParent(putterRoot.transform, false);
-            shaft.transform.localPosition = new Vector3(0f, 0.4f, 0f);
-            shaft.transform.localScale = new Vector3(0.016f, 0.42f, 0.016f);
-            Object.DestroyImmediate(shaft.GetComponent<Collider>());
-            shaft.GetComponent<Renderer>().sharedMaterial = putterMat;
-
-            // Empuñadura / Grip
+            // Empuñadura / Grip (en el origen local del palo)
             GameObject grip = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             grip.name = "Grip";
             grip.transform.SetParent(putterRoot.transform, false);
-            grip.transform.localPosition = new Vector3(0f, 0.72f, 0f);
-            grip.transform.localScale = new Vector3(0.026f, 0.14f, 0.026f);
+            grip.transform.localPosition = new Vector3(0f, 0f, 0f);
+            grip.transform.localScale = new Vector3(0.024f, 0.10f, 0.024f); // 20cm de empuñadura
             Object.DestroyImmediate(grip.GetComponent<Collider>());
             var gripMat = GetOrCreateMaterial("M_Golf_PutterGrip", new Color(0.12f, 0.12f, 0.12f), 0.3f);
             grip.GetComponent<Renderer>().sharedMaterial = gripMat;
 
-            // Cabezal / Head
+            // Vara / Shaft (se extiende hacia abajo en -Y)
+            GameObject shaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            shaft.name = "Shaft";
+            shaft.transform.SetParent(putterRoot.transform, false);
+            shaft.transform.localPosition = new Vector3(0f, -0.51f, 0f);
+            shaft.transform.localScale = new Vector3(0.014f, 0.51f, 0.014f); // 1.02m de longitud total
+            Object.DestroyImmediate(shaft.GetComponent<Collider>());
+            shaft.GetComponent<Renderer>().sharedMaterial = putterMat;
+
+            // Cabezal / Head (en la base del palo a ~1.02m por debajo de la empuñadura)
             GameObject head = GameObject.CreatePrimitive(PrimitiveType.Cube);
             head.name = "ClubHead";
             head.transform.SetParent(putterRoot.transform, false);
-            head.transform.localPosition = new Vector3(0f, 0.035f, 0f);
-            head.transform.localScale = new Vector3(0.12f, 0.045f, 0.055f);
+            head.transform.localPosition = new Vector3(0f, -1.02f, 0.02f);
+            head.transform.localScale = new Vector3(0.13f, 0.045f, 0.06f);
             head.GetComponent<Renderer>().sharedMaterial = putterMat;
 
             // Cara frontal para la normal del tiro
@@ -364,10 +392,15 @@ namespace Golf.Editor
             faceForward.transform.SetParent(head.transform, false);
             faceForward.transform.localRotation = Quaternion.identity;
 
-            // Collider configurado como Trigger para no atascarse fisicamente contra el suelo
+            // Collider configurado como Trigger para contacto fluido con la bola
             var headCol = head.GetComponent<BoxCollider>();
             headCol.isTrigger = true;
-            headCol.size = new Vector3(1.1f, 1.2f, 1.1f);
+            headCol.size = new Vector3(1.25f, 1.4f, 1.3f);
+
+            var rb = putterRoot.AddComponent<Rigidbody>();
+            rb.mass = 0.4f;
+            rb.useGravity = false;
+            rb.isKinematic = true;
 
             // Componente GolfPutter
             var putterComp = putterRoot.AddComponent<GolfPutter>();
@@ -376,18 +409,10 @@ namespace Golf.Editor
             so.FindProperty("clubHead").objectReferenceValue = head.transform;
             so.FindProperty("clubFaceForward").objectReferenceValue = faceForward.transform;
             so.FindProperty("targetBall").objectReferenceValue = ball;
+            so.FindProperty("autoBindToRightHand").boolValue = true;
+            so.FindProperty("localGripPosition").vector3Value = new Vector3(0f, -0.02f, -0.02f);
+            so.FindProperty("localGripEuler").vector3Value = Vector3.zero;
             so.ApplyModifiedProperties();
-
-            // XRGrabInteractable para poder tomarlo en VR
-            var grab = putterRoot.AddComponent<XRGrabInteractable>();
-            grab.movementType = XRBaseInteractable.MovementType.VelocityTracking;
-            var rb = putterRoot.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.mass = 0.4f;
-                rb.useGravity = false;
-                rb.isKinematic = true;
-            }
 
             return putterRoot;
         }
@@ -398,11 +423,11 @@ namespace Golf.Editor
             holeRoot.transform.SetParent(parent, false);
             holeRoot.transform.position = Vector3.zero;
 
-            // 1. Tramo recto principal (Tee a Curva)
-            CreateTurfSection(holeRoot.transform, "Fairway_Straight", new Vector3(0f, 0f, 2f), new Vector3(1.2f, 0.1f, 4.5f), turfMat, woodMat, turfPhys, woodPhys);
+            // 1. Tramo recto principal (Tee a Curva) con cabecera trasera
+            CreateTurfSection(holeRoot.transform, "Fairway_Straight", new Vector3(0f, 0f, 2f), new Vector3(1.2f, 0.1f, 4.5f), turfMat, woodMat, turfPhys, woodPhys, hasLeftBorder: true, hasRightBorder: true, hasBackBorder: true);
 
-            // 2. Tramo hacia la derecha (Curva a Hoyo)
-            CreateTurfSection(holeRoot.transform, "Fairway_TurnRight", new Vector3(1.8f, 0f, 4.25f), new Vector3(3.6f, 0.1f, 1.2f), turfMat, woodMat, turfPhys, woodPhys, hasLeftBorder: false);
+            // 2. Tramo hacia la derecha (Curva a Hoyo) con cierre lateral y frontal
+            CreateTurfSection(holeRoot.transform, "Fairway_TurnRight", new Vector3(1.8f, 0f, 4.25f), new Vector3(3.6f, 0.1f, 1.2f), turfMat, woodMat, turfPhys, woodPhys, hasLeftBorder: false, hasRightBorder: true, hasBackBorder: false, hasFrontBorder: true);
 
             // Tee Point
             GameObject tee = new GameObject("Tee_Point");
@@ -429,10 +454,10 @@ namespace Golf.Editor
             holeRoot.transform.SetParent(parent, false);
             holeRoot.transform.position = new Vector3(7.5f, 0f, 0f);
 
-            // 1. Tramo de salida
-            CreateTurfSection(holeRoot.transform, "Fairway_Start", new Vector3(0f, 0f, 1.5f), new Vector3(1.2f, 0.1f, 3.2f), turfMat, woodMat, turfPhys, woodPhys);
+            // 1. Tramo de salida con cabecera trasera
+            CreateTurfSection(holeRoot.transform, "Fairway_Start", new Vector3(0f, 0f, 1.5f), new Vector3(1.2f, 0.1f, 3.2f), turfMat, woodMat, turfPhys, woodPhys, hasLeftBorder: true, hasRightBorder: true, hasBackBorder: true);
 
-            // 2. Rampa de subida
+            // 2. Rampa de subida con laterales de contencion
             GameObject ramp = GameObject.CreatePrimitive(PrimitiveType.Cube);
             ramp.name = "Ramp_Up";
             ramp.transform.SetParent(holeRoot.transform, false);
@@ -442,10 +467,13 @@ namespace Golf.Editor
             ramp.GetComponent<Renderer>().sharedMaterial = turfMat;
             ramp.GetComponent<BoxCollider>().material = turfPhys;
 
+            CreateRampBumper(ramp.transform, "Ramp_Up_Bumper_L", new Vector3(-0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.2f), woodMat, woodPhys);
+            CreateRampBumper(ramp.transform, "Ramp_Up_Bumper_R", new Vector3(0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.2f), woodMat, woodPhys);
+
             // 3. Puente elevado
             CreateTurfSection(holeRoot.transform, "Bridge_Elevated", new Vector3(0f, 0.44f, 6.5f), new Vector3(1.1f, 0.1f, 2.8f), turfMat, woodMat, turfPhys, woodPhys);
 
-            // 4. Rampa de bajada
+            // 4. Rampa de bajada con laterales de contencion
             GameObject rampDown = GameObject.CreatePrimitive(PrimitiveType.Cube);
             rampDown.name = "Ramp_Down";
             rampDown.transform.SetParent(holeRoot.transform, false);
@@ -455,8 +483,11 @@ namespace Golf.Editor
             rampDown.GetComponent<Renderer>().sharedMaterial = turfMat;
             rampDown.GetComponent<BoxCollider>().material = turfPhys;
 
-            // 5. Isla del Hoyo
-            CreateTurfSection(holeRoot.transform, "Green_CupIsland", new Vector3(0f, 0f, 11.2f), new Vector3(1.8f, 0.1f, 2.8f), turfMat, woodMat, turfPhys, woodPhys);
+            CreateRampBumper(rampDown.transform, "Ramp_Down_Bumper_L", new Vector3(-0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.2f), woodMat, woodPhys);
+            CreateRampBumper(rampDown.transform, "Ramp_Down_Bumper_R", new Vector3(0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.2f), woodMat, woodPhys);
+
+            // 5. Isla del Hoyo con cierre perimetral
+            CreateTurfSection(holeRoot.transform, "Green_CupIsland", new Vector3(0f, 0f, 11.2f), new Vector3(1.8f, 0.1f, 2.8f), turfMat, woodMat, turfPhys, woodPhys, hasLeftBorder: true, hasRightBorder: true, hasBackBorder: false, hasFrontBorder: true);
 
             // Tee Point
             GameObject tee = new GameObject("Tee_Point");
@@ -483,8 +514,8 @@ namespace Golf.Editor
             holeRoot.transform.SetParent(parent, false);
             holeRoot.transform.position = new Vector3(15f, 0f, 0f);
 
-            // Fairway recto continuo
-            CreateTurfSection(holeRoot.transform, "Fairway_Windmill", new Vector3(0f, 0f, 5.5f), new Vector3(1.6f, 0.1f, 11.5f), turfMat, woodMat, turfPhys, woodPhys);
+            // Fairway recto continuo con contencion perimetral completa (delimitado 100%)
+            CreateTurfSection(holeRoot.transform, "Fairway_Windmill", new Vector3(0f, 0f, 5.5f), new Vector3(1.6f, 0.1f, 11.5f), turfMat, woodMat, turfPhys, woodPhys, hasLeftBorder: true, hasRightBorder: true, hasBackBorder: true, hasFrontBorder: true);
 
             // Molino Giratorio en el centro (Z = 5.5m)
             GameObject windmillBuilding = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -543,7 +574,20 @@ namespace Golf.Editor
             };
         }
 
-        private static void CreateTurfSection(Transform parent, string name, Vector3 localPos, Vector3 size, Material turfMat, Material woodMat, PhysicsMaterial turfPhys, PhysicsMaterial woodPhys, bool hasLeftBorder = true, bool hasRightBorder = true)
+        private static void CreateRampBumper(Transform parent, string name, Vector3 localPos, Vector3 scale, Material woodMat, PhysicsMaterial woodPhys)
+        {
+            GameObject b = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            b.name = name;
+            b.tag = "WoodBumper";
+            b.transform.SetParent(parent, false);
+            b.transform.localPosition = localPos;
+            b.transform.localScale = scale;
+            b.transform.localRotation = Quaternion.identity;
+            b.GetComponent<Renderer>().sharedMaterial = woodMat;
+            b.GetComponent<BoxCollider>().material = woodPhys;
+        }
+
+        private static void CreateTurfSection(Transform parent, string name, Vector3 localPos, Vector3 size, Material turfMat, Material woodMat, PhysicsMaterial turfPhys, PhysicsMaterial woodPhys, bool hasLeftBorder = true, bool hasRightBorder = true, bool hasBackBorder = false, bool hasFrontBorder = false)
         {
             GameObject section = new GameObject(name);
             section.transform.SetParent(parent, false);
@@ -557,7 +601,7 @@ namespace Golf.Editor
             turf.GetComponent<Renderer>().sharedMaterial = turfMat;
             turf.GetComponent<BoxCollider>().material = turfPhys;
 
-            float borderHeight = 0.16f;
+            float borderHeight = 0.22f; // Altura reforzada a 22 cm para contencion de rebotes
             float borderThickness = 0.08f;
 
             // Borde Izquierdo de madera
@@ -584,6 +628,32 @@ namespace Golf.Editor
                 rightBorder.transform.localScale = new Vector3(borderThickness, borderHeight, size.z + borderThickness * 2f);
                 rightBorder.GetComponent<Renderer>().sharedMaterial = woodMat;
                 rightBorder.GetComponent<BoxCollider>().material = woodPhys;
+            }
+
+            // Borde Trasero de madera (detrás del Tee o inicio de tramo)
+            if (hasBackBorder)
+            {
+                GameObject backBorder = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                backBorder.name = "Bumper_Back";
+                backBorder.tag = "WoodBumper";
+                backBorder.transform.SetParent(section.transform, false);
+                backBorder.transform.localPosition = new Vector3(0f, borderHeight * 0.5f, -size.z * 0.5f - borderThickness * 0.5f);
+                backBorder.transform.localScale = new Vector3(size.x + borderThickness * 2f, borderHeight, borderThickness);
+                backBorder.GetComponent<Renderer>().sharedMaterial = woodMat;
+                backBorder.GetComponent<BoxCollider>().material = woodPhys;
+            }
+
+            // Borde Frontal de madera (cierre final detrás del hoyo)
+            if (hasFrontBorder)
+            {
+                GameObject frontBorder = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                frontBorder.name = "Bumper_Front";
+                frontBorder.tag = "WoodBumper";
+                frontBorder.transform.SetParent(section.transform, false);
+                frontBorder.transform.localPosition = new Vector3(0f, borderHeight * 0.5f, size.z * 0.5f + borderThickness * 0.5f);
+                frontBorder.transform.localScale = new Vector3(size.x + borderThickness * 2f, borderHeight, borderThickness);
+                frontBorder.GetComponent<Renderer>().sharedMaterial = woodMat;
+                frontBorder.GetComponent<BoxCollider>().material = woodPhys;
             }
         }
 
@@ -754,22 +824,6 @@ namespace Golf.Editor
             scenes.Add(new EditorBuildSettingsScene(scenePath, true));
             EditorBuildSettings.scenes = scenes.ToArray();
             Debug.Log($"[GolfSceneBuilder] Escena agregada a Build Settings: {scenePath}");
-        }
-    }
-
-    /// <summary>
-    /// Componente auxiliar para detectar caida al agua u oceano.
-    /// </summary>
-    public class OutOfBoundsTrigger : MonoBehaviour
-    {
-        private void OnTriggerEnter(Collider other)
-        {
-            GolfBall ball = other.GetComponent<GolfBall>();
-            if (ball == null) ball = other.GetComponentInParent<GolfBall>();
-            if (ball != null)
-            {
-                ball.TriggerOutOfBounds();
-            }
         }
     }
 }

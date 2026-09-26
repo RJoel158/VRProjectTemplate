@@ -147,8 +147,8 @@ Transform:
   m_GameObject: {fileID: 28250787}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.035, z: 0}
-  m_LocalScale: {x: 0.12, y: 0.045, z: 0.055}
+  m_LocalPosition: {x: 0, y: -1.02, z: 0.02}
+  m_LocalScale: {x: 0.12, y: 0.04, z: 0.06}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 121313524}
@@ -1677,7 +1677,7 @@ Transform:
   m_GameObject: {fileID: 264601618}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.15, y: 0.65, z: 0}
+  m_LocalPosition: {x: -0.15, y: 0.85, z: 0.15}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -6184,21 +6184,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1436615371}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!115 &1438812276
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: OutOfBoundsTrigger
-  m_Namespace: Golf.Editor
-  m_AssemblyName: Assembly-CSharp-Editor
 --- !u!1 &1477122816
 GameObject:
   m_ObjectHideFlags: 0
@@ -6226,8 +6211,8 @@ Transform:
   m_GameObject: {fileID: 1477122816}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.4, z: 0}
-  m_LocalScale: {x: 0.016, y: 0.42, z: 0.016}
+  m_LocalPosition: {x: 0, y: -0.51, z: 0}
+  m_LocalScale: {x: 0.014, y: 0.51, z: 0.014}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 264601620}
@@ -6551,8 +6536,8 @@ Transform:
   m_GameObject: {fileID: 1626748840}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.72, z: 0}
-  m_LocalScale: {x: 0.026, y: 0.14, z: 0.026}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.024, y: 0.1, z: 0.024}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 264601620}
@@ -7694,7 +7679,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1982092216}
   - component: {fileID: 1982092215}
-  - component: {fileID: 1982092214}
   - component: {fileID: 1982092213}
   - component: {fileID: 1982092212}
   - component: {fileID: 1982092211}
@@ -7714,9 +7698,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1982092210}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1438812276}
+  m_Script: {fileID: 11500000, guid: 309693c7055e3e249ba566a68deb14ce, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp-Editor::Golf.Editor.OutOfBoundsTrigger
+  m_EditorClassIdentifier: Golf.Gameplay:OutOfBoundsTrigger
 --- !u!65 &1982092212
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -7787,28 +7771,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &1982092214
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1982092210}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!33 &1982092215
 MeshFilter:
   m_ObjectHideFlags: 0
