@@ -322,6 +322,14 @@ namespace Tiro.Weapons
                 {
                     selector.HandleShotOnButton(hit.collider.name.ToLower());
                 }
+
+                // 5. Easter Egg: Rapaces en el cielo
+                var raptor = hit.collider.GetComponentInParent<Tiro.Environment.EasterEggRaptorTarget>();
+                if (raptor == null) raptor = hit.collider.GetComponent<Tiro.Environment.EasterEggRaptorTarget>();
+                if (raptor != null)
+                {
+                    raptor.OnShotByRifle(hit.point);
+                }
             }
 
             if (gameObject.activeInHierarchy)

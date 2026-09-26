@@ -338,6 +338,12 @@ namespace Tiro.Audio
             Debug.Log($"[ShootingAudioManager] Sonido reproducido: {clip.name} (Vol: {volume})");
         }
 
+        public static void PlayEasterEggSound()
+        {
+            AudioClip clip = ShootingSoundFX.GetEasterEggSquawk();
+            PlaySound(clip, 1.0f);
+        }
+
         public static void PlayGunshot(ShootingDiscipline discipline = ShootingDiscipline.OlympicRifleDistance, AudioClip customClip = null)
         {
             LoadDefaultClips();

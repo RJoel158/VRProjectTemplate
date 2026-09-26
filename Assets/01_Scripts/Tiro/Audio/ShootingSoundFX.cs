@@ -281,5 +281,36 @@ namespace Tiro.Audio
                 return cachedStandardHit;
             }
         }
+
+        private static AudioClip cachedEasterEggSquawk;
+
+        /// <summary>
+        /// Sonido cómico de Easter Egg: graznido rápido arcade con campana triunfal.
+        /// </summary>
+        public static AudioClip GetEasterEggSquawk()
+        {
+            if (cachedEasterEggSquawk != null) return cachedEasterEggSquawk;
+
+            int sampleRate = 44100;
+            int sampleCount = (int)(sampleRate * 0.45f);
+            float[] samples = new float[sampleCount];
+
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float t = (float)i / sampleRate;
+                // Tono cómico de pájaro arcade: modulación rápida de 1100Hz a 420Hz
+                float freq = Mathf.Lerp(1100f, 420f, t / 0.45f) + Mathf.Sin(2f * Mathf.PI * 32f * t) * 80f;
+                float birdTone = Mathf.Sin(2f * Mathf.PI * freq * t) * Mathf.Exp(-t * 7f);
+
+                // Chime triunfal agudo
+                float bell = Mathf.Sin(2f * Mathf.PI * 1850f * t) * Mathf.Exp(-t * 5f) * 0.4f;
+
+                samples[i] = Mathf.Clamp(birdTone * 0.65f + bell, -1f, 1f);
+            }
+
+            cachedEasterEggSquawk = AudioClip.Create("FX_EasterEgg_Squawk", sampleCount, 1, sampleRate, false);
+            cachedEasterEggSquawk.SetData(samples, 0);
+            return cachedEasterEggSquawk;
+        }
     }
 }

@@ -49,6 +49,12 @@ namespace Tiro.Core
         [SerializeField] private bool seriesActive = false;
         [SerializeField] private int currentTargetIndex = 0;
 
+        [Header("Easter Egg State")]
+        [SerializeField] private bool easterEggMultiplierActive = false;
+        private bool easterEggTriggeredThisSession = false;
+
+        public bool IsEasterEggMultiplierActive => easterEggMultiplierActive;
+
         private ShootingSaveData currentSaveData;
 
         public ShootingDiscipline ActiveDiscipline => activeDiscipline;
@@ -158,6 +164,13 @@ namespace Tiro.Core
             // Auto-detectar dianas dinámicas
             if (wallGallery == null) wallGallery = FindAnyObjectByType<DynamicWallTargetGallery>();
             if (clayLauncher == null) clayLauncher = FindAnyObjectByType<ClayPigeonLauncher>();
+
+            // Asegurar entorno inmersivo de campo abierto (turriles, neumaticos, bosque perimetral y rapaces)
+            if (FindAnyObjectByType<Tiro.Environment.ShootingOutdoorEnvironment>() == null)
+            {
+                GameObject envObj = new GameObject("Shooting_Outdoor_Environment");
+                envObj.AddComponent<Tiro.Environment.ShootingOutdoorEnvironment>();
+            }
 
             // Conectar eventos de dianas dinámicas
             if (wallGallery != null)
@@ -339,7 +352,8 @@ namespace Tiro.Core
             if (!seriesActive || activeDiscipline != ShootingDiscipline.OlympicRifleDistance) return;
 
             shotsFiredInSeries++;
-            currentSeriesScore += score;
+            int pts = easterEggMultiplierActive ? score * 2 : score;
+            currentSeriesScore += pts;
             if (isBullseye) bullseyesInSeries++;
 
             int maxShots = config != null ? config.shotsPerSeries : 10;
@@ -402,7 +416,8 @@ namespace Tiro.Core
             if (!seriesActive || activeDiscipline != ShootingDiscipline.DynamicPistolWall) return;
 
             shotsFiredInSeries++;
-            currentSeriesScore += score;
+            int pts = easterEggMultiplierActive ? score * 2 : score;
+            currentSeriesScore += pts;
             if (isBullseye) bullseyesInSeries++;
 
             if (ScoreManager.Instance != null && score > 0)
@@ -425,7 +440,8 @@ namespace Tiro.Core
             if (!seriesActive || activeDiscipline != ShootingDiscipline.ClayPigeonShotgun) return;
 
             shotsFiredInSeries++;
-            currentSeriesScore += points;
+            int pts = easterEggMultiplierActive ? points * 2 : points;
+            currentSeriesScore += pts;
             bullseyesInSeries++;
 
             if (ScoreManager.Instance != null && points > 0)
@@ -553,6 +569,27 @@ namespace Tiro.Core
                 : $"¡Ronda de {disciplineName} Completada! Puntuacion: {currentSeriesScore} pts.";
 
             OnSeriesFinished?.Invoke(msg, currentSeriesScore, medal);
+        }
+
+        /// <summary>
+        /// Easter Egg: Disparo acertado a las rapaces en el cielo con el Rifle de Precision.
+        /// Duplica los puntos acumulados y activa multiplicador x2 para el resto de la serie.
+        /// Se activa una sola vez por sesion.
+        /// </summary>
+        public bool TriggerEasterEggBonus()
+        {
+            if (easterEggTriggeredThisSession) return false;
+            easterEggTriggeredThisSession = true;
+            easterEggMultiplierActive = true;
+
+            int bonus = Mathf.Max(currentSeriesScore, 50);
+            currentSeriesScore += bonus;
+
+            int maxShots = (activeDiscipline == ShootingDiscipline.DynamicPistolWall) ? 60 : ((activeDiscipline == ShootingDiscipline.ClayPigeonShotgun) ? 10 : (config != null ? config.shotsPerSeries : 10));
+            OnScoreUpdated?.Invoke(currentSeriesScore, shotsFiredInSeries, maxShots);
+
+            Debug.Log($"[ShootingRangeManager] EASTER EGG ACTIVADO: Puntaje duplicado (+{bonus} pts) y multiplicador x2 activo.");
+            return true;
         }
     }
 }
