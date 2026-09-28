@@ -18,4 +18,6 @@ MonoBehaviour:
   sceneName: BowlingScene
   timeLimitSeconds: 60
   targetScoreToWin: 0
-  instructionsText: 
+  instructionsText: 'Apunta a los pinos para ganar puntos.
+
+'

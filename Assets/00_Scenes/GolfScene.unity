@@ -634,7 +634,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PauseMenuController
   pauseMenuAnimator: {fileID: 1780507945}
-  mainMenuSceneName: MainMenu
+  mainMenuSceneName: ModeMenu
   buttonAudioSource: {fileID: 91248661}
   buttonClickSound: {fileID: 8300000, guid: 5947d3ad4cd92344bbe278d5faa7b7e6, type: 3}
 --- !u!114 &91248660

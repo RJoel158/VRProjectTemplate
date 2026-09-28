@@ -75,10 +75,11 @@ public class PauseMenuController : MonoBehaviour
         pauseMenuAnimator.Close();
         Time.timeScale = 1f;
 
+        if (CircuitFlowManager.Instance != null)
+            CircuitFlowManager.Instance.SetMode(GameMode.None);
+
         if (VRInputPersistenceManager.Instance != null)
-        {
             VRInputPersistenceManager.Instance.CollectAndEnableInputAssets();
-        }
 
         SceneManager.LoadScene(mainMenuSceneName);
     }

@@ -18,8 +18,13 @@ public class SportEndPanel : MonoBehaviour
 
     void Awake()
     {
-        if (continueButton != null) continueButton.gameObject.SetActive(false);
-        if (retryButton != null) retryButton.gameObject.SetActive(false);
+        continueButton.gameObject.SetActive(false);
+        retryButton.gameObject.SetActive(false);
+
+        if (CircuitFlowManager.Instance == null)
+        {
+            Debug.LogWarning("SportEndPanel: No CircuitFlowManager found. Treating as Free Mode (scene opened directly).");
+        }
     }
 
     private bool hasEnded = false;

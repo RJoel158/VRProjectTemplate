@@ -15,7 +15,7 @@ MonoBehaviour:
   sportName: Minigolf
   description: Circuito de minigolf estilo Golf It! y Wii Sports Resort. Mide la
     fuerza con tu putter, supera obstaculos y emboca en la menor cantidad de golpes.
-  icon: {fileID: 21300000, guid: 73b6542fab88e2b43a3cc32e22704ed0, type: 3}
+  icon: {fileID: 21300000, guid: e5d095704fd7e15459ad10288544aec8, type: 3}
   sceneName: GolfScene
   timeLimitSeconds: 90
   targetScoreToWin: 7

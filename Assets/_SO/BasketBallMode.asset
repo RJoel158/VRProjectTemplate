@@ -18,4 +18,4 @@ MonoBehaviour:
   sceneName: BasketScene
   timeLimitSeconds: 30
   targetScoreToWin: 0
-  instructionsText: 
+  instructionsText: Encesta en la canasta para ganar puntos.
