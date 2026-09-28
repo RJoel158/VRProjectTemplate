@@ -185,7 +185,11 @@ namespace Tiro.Audio
             }
             if (clipBgmTheme == null)
             {
-                clipBgmTheme = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/Nintendo Wii - Mii Channel Theme.mp3");
+                clipBgmTheme = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/Gerudo Valley - The Legend of Zelda Ocarina Of Time.mp3");
+                if (clipBgmTheme == null)
+                {
+                    clipBgmTheme = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/03_Resources/Sounds/Nintendo Wii - Mii Channel Theme.mp3");
+                }
             }
             if (clipKnockdown == null)
             {
