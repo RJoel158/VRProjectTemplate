@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-
 public class ScoreManager : MonoBehaviour
 {
     public static ScoreManager Instance { get; private set; }
@@ -10,11 +9,12 @@ public class ScoreManager : MonoBehaviour
     [SerializeField] private int currentScore;
 
     [Header("Events")]
-    public UnityEvent<int> onScoreChanged; 
+    public UnityEvent<int> onScoreChanged;
+
+    private bool isFrozen = false;
 
     private void Awake()
     {
-      
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -23,9 +23,10 @@ public class ScoreManager : MonoBehaviour
         Instance = this;
     }
 
-   
     public void RegisterScoreEvent(ScoreEventData scoreEvent)
     {
+        if (isFrozen) return;
+
         if (scoreEvent == null)
         {
             Debug.LogWarning("ScoreManager: tried to register a null ScoreEventData.");
@@ -47,17 +48,25 @@ public class ScoreManager : MonoBehaviour
         onScoreChanged?.Invoke(currentScore);
     }
 
-   
     public void AddPoints(int amount)
     {
+        if (isFrozen) return;
+
         currentScore += amount;
         onScoreChanged?.Invoke(currentScore);
     }
 
     public int GetCurrentScore() => currentScore;
 
+    // Call when time is up: no more points can be added
+    public void FreezeScore()
+    {
+        isFrozen = true;
+    }
+
     public void ResetScore()
     {
+        isFrozen = false;
         currentScore = 0;
         onScoreChanged?.Invoke(currentScore);
     }
