@@ -14,6 +14,13 @@ namespace Golf.Gameplay
             if (ball == null) ball = other.GetComponentInParent<GolfBall>();
             if (ball != null)
             {
+                // La superficie de los hoyos se encuentra en Y >= 0.05m.
+                // Solo debe considerarse fuera de pista si la bola realmente cayó al agua/vacío (Y < -0.10m).
+                if (ball.transform.position.y > -0.10f)
+                {
+                    return;
+                }
+
                 ball.TriggerOutOfBounds();
             }
         }

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace Tiro.Environment
@@ -105,7 +105,18 @@ namespace Tiro.Environment
             safetyLineMat.SetFloat("_Smoothness", 0.3f);
         }
 
-        #region Lateral Boundaries (Turriles Azules y Neumáticos)
+        private static void StripCollider(GameObject go)
+        {
+            if (go == null) return;
+            var col = go.GetComponent<Collider>();
+            if (col != null)
+            {
+                col.enabled = false;
+                DestroyImmediate(col);
+            }
+        }
+
+        #region Lateral Boundaries (Turriles Azules y NeumÃ¡ticos)
 
         private void BuildLateralBoundaries()
         {
@@ -113,7 +124,7 @@ namespace Tiro.Environment
             boundaryRoot.transform.SetParent(transform, false);
 
             // Flanco Izquierdo (X = -5.8m) y Flanco Derecho (X = +5.8m)
-            // Intervalos longitudinales desde el puesto de tiro (Z = 2m) hasta el muro de absorción (Z = 52m)
+            // Intervalos longitudinales desde el puesto de tiro (Z = 2m) hasta el muro de absorciÃ³n (Z = 52m)
             float[] zSpacings = new float[] { 2.2f, 5.5f, 9.5f, 14.0f, 19.5f, 25.5f, 32.0f, 39.0f, 46.5f, 52.0f };
 
             for (int i = 0; i < zSpacings.Length; i++)
@@ -133,7 +144,7 @@ namespace Tiro.Environment
             lineObj.transform.SetParent(boundaryRoot.transform, false);
             lineObj.transform.position = new Vector3(0f, 0.005f, 0.85f);
             lineObj.transform.localScale = new Vector3(4.8f, 0.01f, 0.12f);
-            Destroy(lineObj.GetComponent<Collider>());
+            StripCollider(lineObj);
             lineObj.GetComponent<Renderer>().sharedMaterial = safetyLineMat;
         }
 
@@ -176,7 +187,7 @@ namespace Tiro.Environment
             body.name = "DrumBody";
             body.transform.SetParent(drum.transform, false);
             body.transform.localScale = new Vector3(0.58f, 0.44f, 0.58f); // Diametro 0.58m, altura 0.88m
-            Destroy(body.GetComponent<Collider>());
+            StripCollider(body);
             body.GetComponent<Renderer>().sharedMaterial = blueDrumMat;
 
             // Aros metalicos de refuerzo (superior e inferior)
@@ -189,7 +200,7 @@ namespace Tiro.Environment
             cap.transform.SetParent(drum.transform, false);
             cap.transform.localPosition = new Vector3(0f, 0.44f, 0f);
             cap.transform.localScale = new Vector3(0.56f, 0.015f, 0.56f);
-            Destroy(cap.GetComponent<Collider>());
+            StripCollider(cap);
             cap.GetComponent<Renderer>().sharedMaterial = metalRimMat;
         }
 
@@ -200,7 +211,7 @@ namespace Tiro.Environment
             rim.transform.SetParent(parent, false);
             rim.transform.localPosition = new Vector3(0f, yOffset, 0f);
             rim.transform.localScale = new Vector3(0.61f, 0.025f, 0.61f);
-            Destroy(rim.GetComponent<Collider>());
+            StripCollider(rim);
             rim.GetComponent<Renderer>().sharedMaterial = metalRimMat;
         }
 
@@ -221,7 +232,7 @@ namespace Tiro.Environment
                 float jitterZ = (i > 0) ? Mathf.Cos(i * 2.3f) * 0.025f : 0f;
                 tire.transform.localPosition = new Vector3(jitterX, i * tireHeight, jitterZ);
                 tire.transform.localScale = new Vector3(0.68f, 0.10f, 0.68f);
-                Destroy(tire.GetComponent<Collider>());
+                StripCollider(tire);
                 tire.GetComponent<Renderer>().sharedMaterial = blackRubberMat;
 
                 // Centro / hueco visual del neumatico
@@ -230,7 +241,7 @@ namespace Tiro.Environment
                 innerHub.transform.SetParent(tire.transform, false);
                 innerHub.transform.localPosition = new Vector3(0f, 0.01f, 0f);
                 innerHub.transform.localScale = new Vector3(0.42f, 0.11f, 0.42f);
-                Destroy(innerHub.GetComponent<Collider>());
+                StripCollider(innerHub);
                 innerHub.GetComponent<Renderer>().sharedMaterial = metalRimMat;
             }
         }
@@ -247,7 +258,7 @@ namespace Tiro.Environment
             // Arboles en el flanco izquierdo (X entre -7.5m y -11.5m)
             for (float z = 3f; z <= 56f; z += 4.5f)
             {
-                float x = Random.Range(-11.5f, -7.5f);
+                float x = Random.Range(-15.5f, -5.5f); 
                 float scale = Random.Range(0.85f, 1.25f);
                 CreateLowPolyPine(forestRoot.transform, new Vector3(x, 0f, z + Random.Range(-1f, 1f)), scale);
             }
@@ -282,7 +293,7 @@ namespace Tiro.Environment
             trunk.transform.SetParent(tree.transform, false);
             trunk.transform.localPosition = new Vector3(0f, 1.0f, 0f);
             trunk.transform.localScale = new Vector3(0.35f, 1.0f, 0.35f);
-            Destroy(trunk.GetComponent<Collider>());
+            StripCollider(trunk);
             trunk.GetComponent<Renderer>().sharedMaterial = pineTrunkMat;
 
             // 3 Niveles conicos de follaje apilados
@@ -294,14 +305,14 @@ namespace Tiro.Environment
 
         private void CreateFoliageTier(Transform parent, float yPos, float radius, float height, Material mat)
         {
-            // Usamos un cilindro aplanado con extremos cónicos como pirámide estilizada low-poly
+            // Usamos un cilindro aplanado con extremos cÃ³nicos como pirÃ¡mide estilizada low-poly
             GameObject tier = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             tier.name = "FoliageTier";
             tier.transform.SetParent(parent, false);
             tier.transform.localPosition = new Vector3(0f, yPos, 0f);
             tier.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
             tier.transform.localScale = new Vector3(radius, height * 0.5f, radius);
-            Destroy(tier.GetComponent<Collider>());
+            StripCollider(tier);
             tier.GetComponent<Renderer>().sharedMaterial = mat;
         }
 
@@ -336,7 +347,7 @@ namespace Tiro.Environment
                 GameObject body = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 body.transform.SetParent(birdObj.transform, false);
                 body.transform.localScale = new Vector3(0.18f, 0.12f, 0.55f);
-                Destroy(body.GetComponent<Collider>());
+                StripCollider(body);
                 body.GetComponent<Renderer>().sharedMaterial = faunaMat;
 
                 // Alas extendidas de planeo (envergadura de ~1.8m)
@@ -344,7 +355,7 @@ namespace Tiro.Environment
                 wings.transform.SetParent(birdObj.transform, false);
                 wings.transform.localPosition = new Vector3(0f, 0.02f, 0.05f);
                 wings.transform.localScale = new Vector3(1.75f, 0.018f, 0.24f);
-                Destroy(wings.GetComponent<Collider>());
+                StripCollider(wings);
                 wings.GetComponent<Renderer>().sharedMaterial = faunaMat;
 
                 // Cola en abanico
@@ -352,7 +363,7 @@ namespace Tiro.Environment
                 tail.transform.SetParent(birdObj.transform, false);
                 tail.transform.localPosition = new Vector3(0f, 0.02f, -0.32f);
                 tail.transform.localScale = new Vector3(0.32f, 0.015f, 0.22f);
-                Destroy(tail.GetComponent<Collider>());
+                StripCollider(tail);
                 tail.GetComponent<Renderer>().sharedMaterial = faunaMat;
 
                 // Colisionador de deteccion y componente Easter Egg (a 21-26m de altura, nunca estorba las dianas)
@@ -399,7 +410,7 @@ namespace Tiro.Environment
             body.transform.SetParent(rabbit.transform, false);
             body.transform.localPosition = new Vector3(0f, 0.18f, 0f);
             body.transform.localScale = new Vector3(0.24f, 0.22f, 0.36f);
-            Destroy(body.GetComponent<Collider>());
+            StripCollider(body);
             body.GetComponent<Renderer>().sharedMaterial = faunaMat;
 
             // Cabeza
@@ -408,7 +419,7 @@ namespace Tiro.Environment
             head.transform.SetParent(rabbit.transform, false);
             head.transform.localPosition = new Vector3(0f, 0.30f, 0.18f);
             head.transform.localScale = new Vector3(0.16f, 0.16f, 0.18f);
-            Destroy(head.GetComponent<Collider>());
+            StripCollider(head);
             head.GetComponent<Renderer>().sharedMaterial = faunaMat;
 
             // Orejas largas
@@ -424,7 +435,7 @@ namespace Tiro.Environment
             ear.transform.localPosition = pos;
             ear.transform.localRotation = Quaternion.Euler(15f, 0f, zRot);
             ear.transform.localScale = new Vector3(0.035f, 0.10f, 0.02f);
-            Destroy(ear.GetComponent<Collider>());
+            StripCollider(ear);
             ear.GetComponent<Renderer>().sharedMaterial = faunaMat;
         }
 
@@ -442,7 +453,7 @@ namespace Tiro.Environment
             body.transform.SetParent(deer.transform, false);
             body.transform.localPosition = new Vector3(0f, 0.95f, 0f);
             body.transform.localScale = new Vector3(0.45f, 0.50f, 1.10f);
-            Destroy(body.GetComponent<Collider>());
+            StripCollider(body);
             body.GetComponent<Renderer>().sharedMaterial = faunaMat;
 
             // Cuello y cabeza inclinada paciendo en la hierba
@@ -452,7 +463,7 @@ namespace Tiro.Environment
             neck.transform.localPosition = new Vector3(0f, 0.75f, 0.72f);
             neck.transform.localRotation = Quaternion.Euler(35f, 0f, 0f);
             neck.transform.localScale = new Vector3(0.24f, 0.55f, 0.28f);
-            Destroy(neck.GetComponent<Collider>());
+            StripCollider(neck);
             neck.GetComponent<Renderer>().sharedMaterial = faunaMat;
 
             GameObject head = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -460,7 +471,7 @@ namespace Tiro.Environment
             head.transform.SetParent(neck.transform, false);
             head.transform.localPosition = new Vector3(0f, 0.32f, 0.12f);
             head.transform.localScale = new Vector3(0.22f, 0.24f, 0.38f);
-            Destroy(head.GetComponent<Collider>());
+            StripCollider(head);
             head.GetComponent<Renderer>().sharedMaterial = faunaMat;
 
             // 4 Patas
@@ -477,7 +488,7 @@ namespace Tiro.Environment
             leg.transform.SetParent(parent, false);
             leg.transform.localPosition = localPos;
             leg.transform.localScale = new Vector3(0.09f, 0.38f, 0.09f);
-            Destroy(leg.GetComponent<Collider>());
+            StripCollider(leg);
             leg.GetComponent<Renderer>().sharedMaterial = faunaMat;
         }
 
@@ -499,7 +510,7 @@ namespace Tiro.Environment
         }
 
         /// <summary>
-        /// Genera una textura sonora estéreo y sutil de brisa de campo al aire libre
+        /// Genera una textura sonora estÃ©reo y sutil de brisa de campo al aire libre
         /// con modulacion organica de bajas frecuencias sin depender de archivos externos.
         /// </summary>
         private AudioClip GenerateOutdoorBreezeClip()

@@ -227,8 +227,11 @@ namespace Golf.Gameplay
             isRespawning = true;
             if (rb != null)
             {
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
+                if (!rb.isKinematic)
+                {
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
                 rb.isKinematic = true;
             }
 
@@ -312,8 +315,11 @@ namespace Golf.Gameplay
             // Detección de caída fuera de la pista (patio exterior, agua o zona no delimitada)
             if (cName.Contains("patio") || cName.Contains("ocean") || cName.Contains("water") || cTag == "OutOfBounds" || cTag == "Floor")
             {
-                TriggerOutOfBounds();
-                return;
+                if (transform.position.y < -0.10f)
+                {
+                    TriggerOutOfBounds();
+                    return;
+                }
             }
 
             // Deteccion de rebote contra maderas o bordes

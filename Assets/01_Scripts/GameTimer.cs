@@ -5,6 +5,8 @@ using TMPro;
 
 public class GameTimer : MonoBehaviour
 {
+    public static GameTimer Instance { get; private set; }
+
     [Tooltip("Drag the TextMeshPro object that shows the timer here.")]
     public TextMeshProUGUI timerText;
 
@@ -15,6 +17,14 @@ public class GameTimer : MonoBehaviour
 
     private float timeRemaining;
     private bool isRunning;
+
+    public float TimeRemaining => timeRemaining;
+    public bool IsRunning => isRunning;
+
+    private void Awake()
+    {
+        Instance = this;
+    }
 
     private void Start()
     {
@@ -49,6 +59,7 @@ public class GameTimer : MonoBehaviour
 
     private void UpdateTimerText()
     {
+        if (timerText == null) return;
         int minutes = Mathf.FloorToInt(timeRemaining / 60f);
         int seconds = Mathf.FloorToInt(timeRemaining % 60f);
         timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);

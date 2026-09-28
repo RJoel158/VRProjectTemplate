@@ -39,6 +39,14 @@ namespace Tiro.UI
         private void Awake()
         {
             if (audioSource == null) audioSource = GetComponent<AudioSource>();
+
+            // Ocultar botones de seleccion de modo para estandarizar el inicio directo del circuito
+            if (btnSequence != null) btnSequence.gameObject.SetActive(false);
+            if (btnRifle != null) btnRifle.gameObject.SetActive(false);
+            if (btnPistol != null) btnPistol.gameObject.SetActive(false);
+            if (btnShotgun != null) btnShotgun.gameObject.SetActive(false);
+            if (btnRestart != null) btnRestart.gameObject.SetActive(false);
+
             AlignToShooterView();
             UpdatePanelDisplay();
         }
@@ -130,7 +138,8 @@ namespace Tiro.UI
         {
             if (scoreBoardText != null)
             {
-                scoreBoardText.text = $"Puntos Ronda: <color=#FFD700>{score}</color>  |  Tiros: {shots}/{maxShots}";
+                int circuitPts = ScoreManager.Instance != null ? ScoreManager.Instance.GetCurrentScore() : score;
+                scoreBoardText.text = $"PUNTOS CIRCUITO: <color=#FFD700>{circuitPts} pts</color>  |  TIROS: {shots}/{maxShots}";
             }
         }
 
@@ -139,7 +148,8 @@ namespace Tiro.UI
             UpdatePanelDisplay();
             if (scoreBoardText != null)
             {
-                scoreBoardText.text = $"{medal}\n<color=#FFD700>{message}</color>";
+                int circuitPts = ScoreManager.Instance != null ? ScoreManager.Instance.GetCurrentScore() : finalScore;
+                scoreBoardText.text = $"{medal}\n<color=#FFD700>PUNTOS TOTALES: {circuitPts} pts</color>";
             }
         }
 
@@ -148,35 +158,28 @@ namespace Tiro.UI
             if (rangeManager == null) rangeManager = ShootingRangeManager.Instance;
             if (rangeManager == null) return;
 
-            var discipline = rangeManager.ActiveDiscipline;
+            if (headerTitleText != null)
+            {
+                headerTitleText.text = "CIRCUITO DE TIRO OLIMPICO";
+            }
 
             if (currentDisciplineText != null)
             {
-                if (rangeManager.IsSequenceMode)
-                {
-                    currentDisciplineText.text = "MODALIDAD: <color=#FFD700>[CIRCUITO OLIMPICO (SECUENCIA COMPLETA)]</color>";
-                }
-                else
-                {
-                    switch (discipline)
-                    {
-                        case ShootingDiscipline.OlympicRifleDistance:
-                            currentDisciplineText.text = "MODALIDAD: <color=#00E5FF>[RIFLE DE PRECISION (10m, 25m, 50m)]</color>";
-                            break;
-                        case ShootingDiscipline.DynamicPistolWall:
-                            currentDisciplineText.text = "MODALIDAD: <color=#00FF66>[PISTOLA RAPIDA (Pared Reactiva)]</color>";
-                            break;
-                        case ShootingDiscipline.ClayPigeonShotgun:
-                            currentDisciplineText.text = "MODALIDAD: <color=#FF8800>[TIRO AL PLATO (Escopeta Skeet)]</color>";
-                            break;
-                    }
-                }
+                currentDisciplineText.text = "MODALIDAD: <color=#00E5FF>[RIFLE DE PRECISION (10m, 25m, 50m)]</color>";
+            }
+
+            if (scoreBoardText != null)
+            {
+                int circuitPts = ScoreManager.Instance != null ? ScoreManager.Instance.GetCurrentScore() : 0;
+                int maxShots = rangeManager != null && rangeManager.Config != null ? rangeManager.Config.shotsPerSeries : 10;
+                int shotsFired = rangeManager != null ? rangeManager.ShotsFiredInSeries : 0;
+                scoreBoardText.text = $"PUNTOS CIRCUITO: <color=#FFD700>{circuitPts} pts</color>  |  TIROS: {shotsFired}/{maxShots}";
             }
 
             if (recordsText != null && rangeManager.SaveData != null)
             {
                 var save = rangeManager.SaveData;
-                recordsText.text = $"RECORDS:\nRifle: {save.rifleHighScore} pts  |  Pistola: {save.pistolHighScore} pts  |  Plato: {save.clayHighScore} pts";
+                recordsText.text = $"RECORDS HISTORICOS:\nRifle: {save.rifleHighScore} pts  |  Pistola: {save.pistolHighScore} pts  |  Plato: {save.clayHighScore} pts";
             }
         }
 

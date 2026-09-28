@@ -352,6 +352,23 @@ namespace Golf.Core
                 GolfSaveSystem.Save(saveData);
             }
 
+            // Actualizar ScoreManager del circuito si esta presente
+            int pointsAwarded = 0;
+            if (ScoreManager.Instance != null)
+            {
+                int diff = strokesCurrentHole - par;
+                pointsAwarded = diff switch
+                {
+                    <= -2 => 80,
+                    -1 => 60,
+                    0 => 40,
+                    1 => 20,
+                    _ => 10
+                };
+                if (strokesCurrentHole == 1) pointsAwarded = 100;
+                ScoreManager.Instance.AddPoints(pointsAwarded);
+            }
+
             // Audio triunfal
             GolfAudioManager.PlayVictoryFanfare();
 
@@ -359,7 +376,7 @@ namespace Golf.Core
 
             if (scoreboardUI != null)
             {
-                scoreboardUI.ShowHoleCompletedBanner(scoreTerm, strokesCurrentHole, par);
+                scoreboardUI.ShowHoleCompletedBanner(scoreTerm, strokesCurrentHole, par, pointsAwarded);
             }
 
             StartCoroutine(AdvanceHoleRoutine());
@@ -417,6 +434,23 @@ namespace Golf.Core
             if (scoreboardUI != null)
             {
                 scoreboardUI.ShowCourseFinished(totalCourseStrokes, totalPar, saveData);
+            }
+
+            if (ScoreManager.Instance != null)
+            {
+                ScoreManager.Instance.AddPoints(50);
+            }
+
+            StartCoroutine(TriggerSportEndPanelDelayed(2.5f));
+        }
+
+        private IEnumerator TriggerSportEndPanelDelayed(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            var endPanel = FindAnyObjectByType<SportEndPanel>();
+            if (endPanel != null)
+            {
+                endPanel.OnTimeUp();
             }
         }
 

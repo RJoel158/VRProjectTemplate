@@ -66,6 +66,17 @@ namespace Tiro.UI
         private int cachedMaxShots = 10;
         private int cachedAmmo = 10;
 
+        private void Update()
+        {
+            if (timerText != null && GameTimer.Instance != null && GameTimer.Instance.IsRunning)
+            {
+                float t = GameTimer.Instance.TimeRemaining;
+                int mins = Mathf.FloorToInt(t / 60f);
+                int secs = Mathf.FloorToInt(t % 60f);
+                timerText.text = $"Tiempo: {mins:00}:{secs:00}";
+            }
+        }
+
         private void HandleScoreUpdated(int currentScore, int shotsFired, int maxShots)
         {
             cachedShotsFired = shotsFired;
@@ -73,7 +84,8 @@ namespace Tiro.UI
 
             if (scoreText != null)
             {
-                scoreText.text = $"Puntos: <color=#FFD700>{currentScore}</color> / {maxShots * 10}";
+                int circuitPts = ScoreManager.Instance != null ? ScoreManager.Instance.GetCurrentScore() : currentScore;
+                scoreText.text = $"Puntos Circuito: <color=#FFD700>{circuitPts}</color> pts";
             }
 
             UpdateShotsAndAmmoDisplay();

@@ -6,6 +6,7 @@ using Tiro.Data;
 using Tiro.Targets;
 using Tiro.Weapons;
 using Tiro.Persistence;
+using Tiro.UI;
 
 namespace Tiro.Core
 {
@@ -53,9 +54,17 @@ namespace Tiro.Core
         [SerializeField] private bool easterEggMultiplierActive = false;
         private bool easterEggTriggeredThisSession = false;
 
+        [Header("Whiteboard Scoreboard UI")]
+        [SerializeField] private ShootingScoreboardUI scoreboardUI;
+        [SerializeField] private float phaseTimeLimit = 30f;
+        private float phaseTimer = 30f;
+        private bool isTransitioningPhase = false;
+        private int currentCircuitPhaseIndex = 0;
+
         public bool IsEasterEggMultiplierActive => easterEggMultiplierActive;
 
         private ShootingSaveData currentSaveData;
+        private Transform cachedPlayerOrigin;
 
         public ShootingDiscipline ActiveDiscipline => activeDiscipline;
         public int CurrentSeriesIndex => currentSeriesIndex;
@@ -88,6 +97,9 @@ namespace Tiro.Core
             CleanupRogueCamerasAndListeners();
 
             currentSaveData = ShootingSaveSystem.Load();
+
+            // Garantizar que el jugador spawnee firmemente en el puesto de tiro y no caiga al vacío
+            EnsurePlayerSpawn();
         }
 
         private void CleanupRogueCamerasAndListeners()
@@ -186,8 +198,70 @@ namespace Tiro.Core
                 clayLauncher.OnClayRoundFinished += HandleClayRoundFinished;
             }
 
-            // Iniciar en la disciplina inicial
-            SelectDiscipline(activeDiscipline);
+            // Iniciar automaticamente el circuito secuencial: 1. Rifle -> 2. Pistola -> 3. Plato
+            isSequenceMode = true;
+            if (scoreboardUI == null) scoreboardUI = FindAnyObjectByType<ShootingScoreboardUI>();
+            StartCircuitPhase(0);
+
+            // Asegurar posicionamiento y suelo firme en los primeros frames post-inicializacion de OpenXR
+            StartCoroutine(MaintainPlayerGroundedRoutine());
+        }
+
+        /// <summary>
+        /// Ancla al jugador exactamente sobre el suelo del puesto de tiro mirando a las dianas (+Z).
+        /// Desactiva temporalmente el CharacterController para evitar rebotes de colision en el teletransporte.
+        /// </summary>
+        public void EnsurePlayerSpawn()
+        {
+            if (cachedPlayerOrigin == null)
+            {
+                var origin = FindAnyObjectByType<Unity.XR.CoreUtils.XROrigin>();
+                if (origin != null) cachedPlayerOrigin = origin.transform;
+                else
+                {
+                    var rigObj = GameObject.Find("XR Origin (XR Rig)");
+                    if (rigObj != null) cachedPlayerOrigin = rigObj.transform;
+                }
+            }
+
+            if (cachedPlayerOrigin != null)
+            {
+                Vector3 standFeetPos = new Vector3(0f, 0f, 0f);
+                Quaternion standRot = Quaternion.identity;
+
+                var charController = cachedPlayerOrigin.GetComponent<CharacterController>();
+                if (charController != null) charController.enabled = false;
+
+                var originComp = cachedPlayerOrigin.GetComponent<Unity.XR.CoreUtils.XROrigin>();
+                if (originComp != null && originComp.Camera != null)
+                {
+                    Vector3 cameraOffset = originComp.Camera.transform.position - cachedPlayerOrigin.position;
+                    cameraOffset.y = 0f;
+                    cachedPlayerOrigin.position = standFeetPos - cameraOffset;
+                }
+                else
+                {
+                    cachedPlayerOrigin.position = standFeetPos;
+                }
+
+                cachedPlayerOrigin.rotation = standRot;
+
+                if (charController != null)
+                {
+                    charController.transform.position = cachedPlayerOrigin.position;
+                    charController.enabled = true;
+                }
+            }
+        }
+
+        private IEnumerator MaintainPlayerGroundedRoutine()
+        {
+            yield return null;
+            EnsurePlayerSpawn();
+            yield return new WaitForSeconds(0.08f);
+            EnsurePlayerSpawn();
+            yield return new WaitForSeconds(0.2f);
+            EnsurePlayerSpawn();
         }
 
         private void OnDestroy()
@@ -216,9 +290,35 @@ namespace Tiro.Core
 
         private void Update()
         {
+            // Salvaguarda: si por cualquier descalibracion o impulso de fisica el jugador cae al vacio o es disparado al cielo,
+            // regresarlo de inmediato al puesto de tiro.
+            if (cachedPlayerOrigin != null)
+            {
+                Vector3 pos = cachedPlayerOrigin.position;
+                if (pos.y < -0.5f || pos.y > 8f || Mathf.Abs(pos.x) > 25f || Mathf.Abs(pos.z) > 35f)
+                {
+                    EnsurePlayerSpawn();
+                }
+            }
+
             if (!seriesActive) return;
 
-            // Para la disciplina de rifle a distancia manejamos el temporizador aquí
+            // Manejo del circuito automatico con limite de tiempo por disciplina (30s cada una)
+            if (isSequenceMode && !isTransitioningPhase)
+            {
+                phaseTimer -= Time.deltaTime;
+                timeRemaining = phaseTimer;
+                if (scoreboardUI != null) scoreboardUI.UpdateTimer(phaseTimer);
+                OnTimerUpdated?.Invoke(Mathf.Max(0f, phaseTimer));
+
+                if (phaseTimer <= 0f)
+                {
+                    AdvanceCircuitSequence();
+                }
+                return;
+            }
+
+            // Fallback si no esta en modo circuito
             if (activeDiscipline == ShootingDiscipline.OlympicRifleDistance)
             {
                 float timeLimit = config != null ? config.timeLimitSeconds : 90f;
@@ -362,7 +462,19 @@ namespace Tiro.Core
 
             if (shotsFiredInSeries >= maxShots)
             {
-                CompleteSeries(timeExpired: false);
+                if (isSequenceMode)
+                {
+                    shotsFiredInSeries = 0;
+                    foreach (var t in targets)
+                    {
+                        if (t != null) t.ResetTarget();
+                    }
+                    if (rifle != null) rifle.TryReload();
+                }
+                else
+                {
+                    CompleteSeries(timeExpired: false);
+                }
             }
         }
 
@@ -432,6 +544,11 @@ namespace Tiro.Core
         private void HandleWallRoundFinished(int finalScore, int hits, int total)
         {
             if (activeDiscipline != ShootingDiscipline.DynamicPistolWall) return;
+            if (isSequenceMode)
+            {
+                if (wallGallery != null) wallGallery.StartGalleryRound();
+                return;
+            }
             CompleteSeries(timeExpired: true);
         }
 
@@ -456,11 +573,16 @@ namespace Tiro.Core
         private void HandleClayRoundFinished(int hits, int total)
         {
             if (activeDiscipline != ShootingDiscipline.ClayPigeonShotgun) return;
+            if (isSequenceMode)
+            {
+                if (clayLauncher != null) clayLauncher.StartClayRound();
+                return;
+            }
             CompleteSeries(timeExpired: false);
         }
 
         [Header("Sequence Tournament Mode")]
-        [SerializeField] private bool isSequenceMode = false;
+        [SerializeField] private bool isSequenceMode = true;
         private int sequenceTotalScore = 0;
         private Coroutine sequenceTransitionRoutine;
 
@@ -475,13 +597,74 @@ namespace Tiro.Core
             }
             isSequenceMode = true;
             sequenceTotalScore = 0;
-            SelectDiscipline(ShootingDiscipline.DynamicPistolWall);
+            StartCircuitPhase(0);
         }
 
-        private IEnumerator SequenceTransitionRoutine(ShootingDiscipline nextDiscipline, float delay)
+        public void StartCircuitPhase(int phaseIndex)
+        {
+            if (scoreboardUI == null) scoreboardUI = FindAnyObjectByType<ShootingScoreboardUI>();
+            currentCircuitPhaseIndex = phaseIndex;
+            isTransitioningPhase = false;
+            phaseTimer = phaseTimeLimit;
+            seriesActive = true;
+
+            switch (phaseIndex)
+            {
+                case 0:
+                    SelectDiscipline(ShootingDiscipline.OlympicRifleDistance);
+                    if (scoreboardUI != null) scoreboardUI.UpdateDiscipline(1, 3, "Rifle Olimpico");
+                    break;
+                case 1:
+                    SelectDiscipline(ShootingDiscipline.DynamicPistolWall);
+                    if (scoreboardUI != null) scoreboardUI.UpdateDiscipline(2, 3, "Pistola Rapida");
+                    break;
+                case 2:
+                    SelectDiscipline(ShootingDiscipline.ClayPigeonShotgun);
+                    if (scoreboardUI != null) scoreboardUI.UpdateDiscipline(3, 3, "Tiro al Plato");
+                    break;
+            }
+
+            if (scoreboardUI != null)
+            {
+                scoreboardUI.UpdateTimer(phaseTimer);
+                scoreboardUI.UpdateScore(ScoreManager.Instance != null ? ScoreManager.Instance.GetCurrentScore() : 0);
+            }
+        }
+
+        private void AdvanceCircuitSequence()
+        {
+            if (isTransitioningPhase) return;
+
+            if (activeDiscipline == ShootingDiscipline.OlympicRifleDistance)
+            {
+                isTransitioningPhase = true;
+                if (scoreboardUI != null) scoreboardUI.ShowBanner("FASE 1 COMPLETADA!", "Preparando Pistola Rapida en 2s...", 2.5f);
+                StartCoroutine(SequenceTransitionRoutine(1, 2.0f));
+            }
+            else if (activeDiscipline == ShootingDiscipline.DynamicPistolWall)
+            {
+                isTransitioningPhase = true;
+                if (scoreboardUI != null) scoreboardUI.ShowBanner("FASE 2 COMPLETADA!", "Preparando Tiro al Plato en 2s...", 2.5f);
+                StartCoroutine(SequenceTransitionRoutine(2, 2.0f));
+            }
+            else if (activeDiscipline == ShootingDiscipline.ClayPigeonShotgun)
+            {
+                isSequenceMode = false;
+                seriesActive = false;
+                if (scoreboardUI != null) scoreboardUI.ShowBanner("CIRCUITO COMPLETADO!", "Excelente Desempeño Olimpico", 4.0f);
+
+                var endPanel = FindAnyObjectByType<SportEndPanel>();
+                if (endPanel != null)
+                {
+                    endPanel.OnTimeUp();
+                }
+            }
+        }
+
+        private IEnumerator SequenceTransitionRoutine(int nextPhaseIndex, float delay)
         {
             yield return new WaitForSeconds(delay);
-            SelectDiscipline(nextDiscipline);
+            StartCircuitPhase(nextPhaseIndex);
         }
 
         private void CompleteSeries(bool timeExpired)
@@ -539,26 +722,8 @@ namespace Tiro.Core
             if (isSequenceMode)
             {
                 sequenceTotalScore += currentSeriesScore;
-
-                if (activeDiscipline == ShootingDiscipline.DynamicPistolWall)
-                {
-                    OnSeriesFinished?.Invoke($"¡FASE 1 (PISTOLA) COMPLETADA! +{currentSeriesScore} pts\nPreparando Rifle de Precision en 3s...", sequenceTotalScore, "CIRCUITO OLIMPICO");
-                    sequenceTransitionRoutine = StartCoroutine(SequenceTransitionRoutine(ShootingDiscipline.OlympicRifleDistance, 3.5f));
-                    return;
-                }
-                else if (activeDiscipline == ShootingDiscipline.OlympicRifleDistance)
-                {
-                    OnSeriesFinished?.Invoke($"¡FASE 2 (RIFLE) COMPLETADA! +{currentSeriesScore} pts\nPreparando Tiro al Plato en 3s...", sequenceTotalScore, "CIRCUITO OLIMPICO");
-                    sequenceTransitionRoutine = StartCoroutine(SequenceTransitionRoutine(ShootingDiscipline.ClayPigeonShotgun, 3.5f));
-                    return;
-                }
-                else if (activeDiscipline == ShootingDiscipline.ClayPigeonShotgun)
-                {
-                    isSequenceMode = false;
-                    string circuitMedal = sequenceTotalScore >= 200 ? "¡GRAN CAMPEON OLIMPICO! ORO" : (sequenceTotalScore >= 140 ? "¡SUBCAMPEON OLIMPICO! PLATA" : "¡BRONCE OLIMPICO!");
-                    OnSeriesFinished?.Invoke($"¡CIRCUITO OLIMPICO COMPLETADO!\nPUNTUACION COMBINADA: {sequenceTotalScore} pts", sequenceTotalScore, circuitMedal);
-                    return;
-                }
+                AdvanceCircuitSequence();
+                return;
             }
 
             string disciplineName = activeDiscipline == ShootingDiscipline.OlympicRifleDistance ? "Rifle de Precision"
@@ -569,6 +734,12 @@ namespace Tiro.Core
                 : $"¡Ronda de {disciplineName} Completada! Puntuacion: {currentSeriesScore} pts.";
 
             OnSeriesFinished?.Invoke(msg, currentSeriesScore, medal);
+
+            var endPanel = FindAnyObjectByType<SportEndPanel>();
+            if (endPanel != null)
+            {
+                endPanel.OnTimeUp();
+            }
         }
 
         /// <summary>
@@ -584,6 +755,11 @@ namespace Tiro.Core
 
             int bonus = Mathf.Max(currentSeriesScore, 50);
             currentSeriesScore += bonus;
+
+            if (ScoreManager.Instance != null && bonus > 0)
+            {
+                ScoreManager.Instance.AddPoints(bonus * 10);
+            }
 
             int maxShots = (activeDiscipline == ShootingDiscipline.DynamicPistolWall) ? 60 : ((activeDiscipline == ShootingDiscipline.ClayPigeonShotgun) ? 10 : (config != null ? config.shotsPerSeries : 10));
             OnScoreUpdated?.Invoke(currentSeriesScore, shotsFiredInSeries, maxShots);

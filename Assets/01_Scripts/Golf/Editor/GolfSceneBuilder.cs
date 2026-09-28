@@ -225,11 +225,11 @@ namespace Golf.Editor
             waterMat.SetFloat("_Smoothness", 0.9f);
             waterRend.sharedMaterial = waterMat;
 
-            // Trigger de fuera de pista general bajo el agua
+            // Trigger de fuera de pista general bajo el agua (nivel superior en Y = -0.20m, 25cm debajo de la pista)
             var boxCol = oceanObj.AddComponent<BoxCollider>();
             boxCol.isTrigger = true;
-            boxCol.size = new Vector3(100f, 2f, 100f);
-            boxCol.center = new Vector3(0f, -0.5f, 0f);
+            boxCol.size = new Vector3(150f, 4.8f, 150f);
+            boxCol.center = new Vector3(0f, -2.0f, 0f);
             var oobTrigger = oceanObj.AddComponent<OutOfBoundsTrigger>();
         }
 
@@ -356,16 +356,16 @@ namespace Golf.Editor
 
         private static GameObject CreateGolfPutter(PutterDataSO putterSO, Material putterMat, GolfBall ball)
         {
-            // El pivote raiz se coloca en la empuñadura (donde la mano sostiene el palo)
+            // El pivote raiz se coloca en la empuÃ±adura (donde la mano sostiene el palo)
             GameObject putterRoot = new GameObject("GolfPutter_VR");
             putterRoot.transform.position = new Vector3(-0.15f, 0.85f, 0.15f);
 
-            // Empuñadura / Grip (en el origen local del palo)
+            // EmpuÃ±adura / Grip (en el origen local del palo)
             GameObject grip = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             grip.name = "Grip";
             grip.transform.SetParent(putterRoot.transform, false);
             grip.transform.localPosition = new Vector3(0f, 0f, 0f);
-            grip.transform.localScale = new Vector3(0.024f, 0.10f, 0.024f); // 20cm de empuñadura
+            grip.transform.localScale = new Vector3(0.024f, 0.10f, 0.024f); // 20cm de empuÃ±adura
             Object.DestroyImmediate(grip.GetComponent<Collider>());
             var gripMat = GetOrCreateMaterial("M_Golf_PutterGrip", new Color(0.12f, 0.12f, 0.12f), 0.3f);
             grip.GetComponent<Renderer>().sharedMaterial = gripMat;
@@ -379,7 +379,7 @@ namespace Golf.Editor
             Object.DestroyImmediate(shaft.GetComponent<Collider>());
             shaft.GetComponent<Renderer>().sharedMaterial = putterMat;
 
-            // Cabezal / Head (en la base del palo a ~1.02m por debajo de la empuñadura)
+            // Cabezal / Head (en la base del palo a ~1.02m por debajo de la empuÃ±adura)
             GameObject head = GameObject.CreatePrimitive(PrimitiveType.Cube);
             head.name = "ClubHead";
             head.transform.SetParent(putterRoot.transform, false);
@@ -457,34 +457,34 @@ namespace Golf.Editor
             // 1. Tramo de salida con cabecera trasera
             CreateTurfSection(holeRoot.transform, "Fairway_Start", new Vector3(0f, 0f, 1.5f), new Vector3(1.2f, 0.1f, 3.2f), turfMat, woodMat, turfPhys, woodPhys, hasLeftBorder: true, hasRightBorder: true, hasBackBorder: true);
 
-            // 2. Rampa de subida con laterales de contencion
+            // 2. Rampa de subida suave perfectamente acoplada al inicio
             GameObject ramp = GameObject.CreatePrimitive(PrimitiveType.Cube);
             ramp.name = "Ramp_Up";
             ramp.transform.SetParent(holeRoot.transform, false);
-            ramp.transform.localPosition = new Vector3(0f, 0.22f, 4.1f);
-            ramp.transform.localScale = new Vector3(1.2f, 0.1f, 2.2f);
-            ramp.transform.localRotation = Quaternion.Euler(-11f, 0f, 0f);
+            ramp.transform.localPosition = new Vector3(0f, 0.075f, 4.1f);
+            ramp.transform.localScale = new Vector3(1.2f, 0.1f, 2.08f);
+            ramp.transform.localRotation = Quaternion.Euler(-4.3f, 0f, 0f);
             ramp.GetComponent<Renderer>().sharedMaterial = turfMat;
             ramp.GetComponent<BoxCollider>().material = turfPhys;
 
-            CreateRampBumper(ramp.transform, "Ramp_Up_Bumper_L", new Vector3(-0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.2f), woodMat, woodPhys);
-            CreateRampBumper(ramp.transform, "Ramp_Up_Bumper_R", new Vector3(0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.2f), woodMat, woodPhys);
+            CreateRampBumper(ramp.transform, "Ramp_Up_Bumper_L", new Vector3(-0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.08f), woodMat, woodPhys);
+            CreateRampBumper(ramp.transform, "Ramp_Up_Bumper_R", new Vector3(0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.08f), woodMat, woodPhys);
 
             // 3. Puente elevado
-            CreateTurfSection(holeRoot.transform, "Bridge_Elevated", new Vector3(0f, 0.44f, 6.5f), new Vector3(1.1f, 0.1f, 2.8f), turfMat, woodMat, turfPhys, woodPhys);
+            CreateTurfSection(holeRoot.transform, "Bridge_Elevated", new Vector3(0f, 0.15f, 6.5f), new Vector3(1.1f, 0.1f, 2.8f), turfMat, woodMat, turfPhys, woodPhys);
 
-            // 4. Rampa de bajada con laterales de contencion
+            // 4. Rampa de bajada suave perfectamente acoplada
             GameObject rampDown = GameObject.CreatePrimitive(PrimitiveType.Cube);
             rampDown.name = "Ramp_Down";
             rampDown.transform.SetParent(holeRoot.transform, false);
-            rampDown.transform.localPosition = new Vector3(0f, 0.22f, 8.8f);
-            rampDown.transform.localScale = new Vector3(1.2f, 0.1f, 2.2f);
-            rampDown.transform.localRotation = Quaternion.Euler(11f, 0f, 0f);
+            rampDown.transform.localPosition = new Vector3(0f, 0.075f, 8.9f);
+            rampDown.transform.localScale = new Vector3(1.2f, 0.1f, 2.08f);
+            rampDown.transform.localRotation = Quaternion.Euler(4.3f, 0f, 0f);
             rampDown.GetComponent<Renderer>().sharedMaterial = turfMat;
             rampDown.GetComponent<BoxCollider>().material = turfPhys;
 
-            CreateRampBumper(rampDown.transform, "Ramp_Down_Bumper_L", new Vector3(-0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.2f), woodMat, woodPhys);
-            CreateRampBumper(rampDown.transform, "Ramp_Down_Bumper_R", new Vector3(0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.2f), woodMat, woodPhys);
+            CreateRampBumper(rampDown.transform, "Ramp_Down_Bumper_L", new Vector3(-0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.08f), woodMat, woodPhys);
+            CreateRampBumper(rampDown.transform, "Ramp_Down_Bumper_R", new Vector3(0.64f, 0.11f, 0f), new Vector3(0.08f, 0.22f, 2.08f), woodMat, woodPhys);
 
             // 5. Isla del Hoyo con cierre perimetral
             CreateTurfSection(holeRoot.transform, "Green_CupIsland", new Vector3(0f, 0f, 11.2f), new Vector3(1.8f, 0.1f, 2.8f), turfMat, woodMat, turfPhys, woodPhys, hasLeftBorder: true, hasRightBorder: true, hasBackBorder: false, hasFrontBorder: true);
@@ -630,7 +630,7 @@ namespace Golf.Editor
                 rightBorder.GetComponent<BoxCollider>().material = woodPhys;
             }
 
-            // Borde Trasero de madera (detrás del Tee o inicio de tramo)
+            // Borde Trasero de madera (detrÃ¡s del Tee o inicio de tramo)
             if (hasBackBorder)
             {
                 GameObject backBorder = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -643,7 +643,7 @@ namespace Golf.Editor
                 backBorder.GetComponent<BoxCollider>().material = woodPhys;
             }
 
-            // Borde Frontal de madera (cierre final detrás del hoyo)
+            // Borde Frontal de madera (cierre final detrÃ¡s del hoyo)
             if (hasFrontBorder)
             {
                 GameObject frontBorder = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -722,52 +722,49 @@ namespace Golf.Editor
             GameObject boardObj = new GameObject("Scoreboard_WorldSpace");
             boardObj.transform.SetParent(parent, false);
             boardObj.transform.position = new Vector3(-2.2f, 1.6f, 1.8f);
-            boardObj.transform.rotation = Quaternion.Euler(0f, 45f, 0f);
+            boardObj.transform.rotation = Quaternion.Euler(0f, -40f, 0f);
 
             Canvas canvas = boardObj.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             RectTransform rect = boardObj.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(900f, 650f);
-            rect.localScale = Vector3.one * 0.0018f;
+            rect.sizeDelta = new Vector2(909f, 503f);
+            rect.localScale = Vector3.one * 0.002f;
 
             boardObj.AddComponent<CanvasScaler>();
             boardObj.AddComponent<GraphicRaycaster>();
 
-            // Fondo de madera del tablero
+            // Fondo Whiteboard (pizarra blanca flotante)
             GameObject bgObj = new GameObject("Background");
             bgObj.transform.SetParent(boardObj.transform, false);
             var bgImg = bgObj.AddComponent<Image>();
-            bgImg.color = new Color(0.12f, 0.16f, 0.2f, 0.94f);
+            var wbSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/03_Resources/Images/Gemini_Generated_Image_jp3lyejp3lyejp3l-removebg-preview.png");
+            if (wbSprite != null) bgImg.sprite = wbSprite;
+            bgImg.color = Color.white;
             var bgRect = bgObj.GetComponent<RectTransform>();
             bgRect.anchorMin = Vector2.zero;
             bgRect.anchorMax = Vector2.one;
             bgRect.sizeDelta = Vector2.zero;
 
-            // Titulo del Hoyo
-            var title = CreateText(boardObj.transform, "TitleText", new Vector2(0f, 220f), new Vector2(850f, 65f), "HOYO 1: CURVA VERDE", 42, TextAlignmentOptions.Center, new Color(1f, 0.85f, 0.1f));
+            var contmFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/03_Resources/Font/contm SDF.asset");
+            Color charcoal = new Color(0.3584906f, 0.3584906f, 0.3584906f, 1f);
 
-            // Par
-            var par = CreateText(boardObj.transform, "ParText", new Vector2(0f, 140f), new Vector2(850f, 50f), "PAR: 2  |  MAX: 5", 34, TextAlignmentOptions.Center, Color.white);
+            // Score acumulado traducido de golpes
+            var score = CreateText(boardObj.transform, "ScoreText", new Vector2(125f, 140f), new Vector2(500f, 75f), "Score: 0", 60, TextAlignmentOptions.Left, charcoal);
+            if (contmFont != null) score.font = contmFont;
+            score.enableWordWrapping = false;
+            score.overflowMode = TextOverflowModes.Overflow;
 
             // Golpes actuales
-            var strokes = CreateText(boardObj.transform, "StrokesText", new Vector2(0f, 50f), new Vector2(850f, 60f), "GOLPES EN ESTE HOYO: 0", 40, TextAlignmentOptions.Center, new Color(0f, 0.9f, 1f));
+            var strokes = CreateText(boardObj.transform, "StrokesText", new Vector2(125f, 40f), new Vector2(500f, 75f), "Golpes: 0", 60, TextAlignmentOptions.Left, charcoal);
+            if (contmFont != null) strokes.font = contmFont;
+            strokes.enableWordWrapping = false;
+            strokes.overflowMode = TextOverflowModes.Overflow;
 
-            // Total Score
-            var total = CreateText(boardObj.transform, "TotalText", new Vector2(0f, -40f), new Vector2(850f, 55f), "TOTAL CIRCUITO: 0", 38, TextAlignmentOptions.Center, new Color(1f, 0.75f, 0.2f));
-
-            // Record historico
-            var record = CreateText(boardObj.transform, "RecordText", new Vector2(0f, -130f), new Vector2(850f, 50f), "RECORD HISTORICO: --", 28, TextAlignmentOptions.Center, new Color(0.75f, 0.75f, 0.75f));
-
-            // Boton Reiniciar Circuito
-            GameObject btnObj = new GameObject("Btn_Restart");
-            btnObj.transform.SetParent(boardObj.transform, false);
-            var btnRect = btnObj.AddComponent<RectTransform>();
-            btnRect.anchoredPosition = new Vector2(0f, -220f);
-            btnRect.sizeDelta = new Vector2(380f, 65f);
-            var btnImg = btnObj.AddComponent<Image>();
-            btnImg.color = new Color(0.2f, 0.45f, 0.25f);
-            var btn = btnObj.AddComponent<Button>();
-            CreateText(btnObj.transform, "BtnText", Vector2.zero, new Vector2(380f, 65f), "REINICIAR CIRCUITO", 28, TextAlignmentOptions.Center, Color.white);
+            // Timer
+            var timer = CreateText(boardObj.transform, "TimerText_Display", new Vector2(125f, -50f), new Vector2(350f, 65f), "01:30", 55, TextAlignmentOptions.Left, charcoal);
+            if (contmFont != null) timer.font = contmFont;
+            timer.enableWordWrapping = false;
+            timer.overflowMode = TextOverflowModes.Overflow;
 
             // Banner Flotante para eventos (Birdie, Out of bounds, etc.)
             GameObject bannerObj = new GameObject("BannerPanel");
@@ -778,20 +775,18 @@ namespace Golf.Editor
             var bannerImg = bannerObj.AddComponent<Image>();
             bannerImg.color = new Color(0.05f, 0.08f, 0.12f, 0.98f);
 
-            var bannerTitle = CreateText(bannerObj.transform, "BannerTitle", new Vector2(0f, 45f), new Vector2(850f, 80f), "¡HOLE IN ONE!", 56, TextAlignmentOptions.Center, Color.yellow);
-            var bannerSub = CreateText(bannerObj.transform, "BannerSub", new Vector2(0f, -40f), new Vector2(850f, 60f), "¡Tiro perfecto al primer golpe!", 32, TextAlignmentOptions.Center, Color.white);
+            var bannerTitle = CreateText(bannerObj.transform, "BannerTitle", new Vector2(0f, 45f), new Vector2(850f, 80f), "HOLE IN ONE!", 50, TextAlignmentOptions.Center, new Color(1f, 0.85f, 0.1f));
+            var bannerSub = CreateText(bannerObj.transform, "BannerSub", new Vector2(0f, -40f), new Vector2(850f, 60f), "1 golpe - Tiro Magistral!", 30, TextAlignmentOptions.Center, Color.white);
+            bannerObj.SetActive(false);
 
             var uiComp = boardObj.AddComponent<GolfScoreboardUI>();
             var so = new SerializedObject(uiComp);
-            so.FindProperty("holeTitleText").objectReferenceValue = title;
-            so.FindProperty("parText").objectReferenceValue = par;
-            so.FindProperty("currentStrokesText").objectReferenceValue = strokes;
-            so.FindProperty("totalScoreText").objectReferenceValue = total;
-            so.FindProperty("recordText").objectReferenceValue = record;
+            so.FindProperty("scoreText").objectReferenceValue = score;
+            so.FindProperty("strokesText").objectReferenceValue = strokes;
+            so.FindProperty("timerText").objectReferenceValue = timer;
             so.FindProperty("bannerPanel").objectReferenceValue = bannerObj;
             so.FindProperty("bannerTitleText").objectReferenceValue = bannerTitle;
             so.FindProperty("bannerSubtitleText").objectReferenceValue = bannerSub;
-            so.FindProperty("restartButton").objectReferenceValue = btn;
             so.ApplyModifiedProperties();
 
             return boardObj;

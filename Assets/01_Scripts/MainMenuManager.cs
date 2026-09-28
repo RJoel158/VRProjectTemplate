@@ -267,6 +267,11 @@ public class MainMenuManager : MonoBehaviour
             yield return null;
         }
 
+        if (musicSource != null)
+        {
+            musicSource.Stop();
+        }
+
         Time.timeScale = 1f;
         if (VRInputPersistenceManager.Instance != null)
         {
@@ -274,5 +279,42 @@ public class MainMenuManager : MonoBehaviour
         }
 
         SceneManager.LoadScene(sceneName);
+    }
+
+    private void OnDestroy()
+    {
+        if (musicSource != null)
+        {
+            musicSource.Stop();
+        }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void InitSceneAudioWatcher()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoadedStopMenuMusic;
+        SceneManager.sceneLoaded += OnSceneLoadedStopMenuMusic;
+    }
+
+    private static void OnSceneLoadedStopMenuMusic(Scene scene, LoadSceneMode mode)
+    {
+        // Al entrar a cualquier escena de deporte (que no sea menú)
+        string lower = scene.name.ToLower();
+        if (!lower.Contains("menu"))
+        {
+            var sources = Object.FindObjectsByType<AudioSource>(FindObjectsSortMode.None);
+            foreach (var src in sources)
+            {
+                if (src != null && src.isPlaying && src.clip != null)
+                {
+                    string clipName = src.clip.name.ToLower();
+                    if (clipName.Contains("wii menu") || clipName.Contains("wii music") || clipName.Contains("wiiclick"))
+                    {
+                        src.Stop();
+                        Debug.Log($"[MainMenuManager] Musica de menu ({src.clip.name}) detenida al entrar a {scene.name}.");
+                    }
+                }
+            }
+        }
     }
 }

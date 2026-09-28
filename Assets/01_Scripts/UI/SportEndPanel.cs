@@ -8,10 +8,18 @@ public class SportEndPanel : MonoBehaviour
     [SerializeField] private Button continueButton; // Circuit Mode only
     [SerializeField] private Button retryButton;     // Free Mode only
 
+    public void SetButtons(Button cont, Button ret)
+    {
+        continueButton = cont;
+        retryButton = ret;
+        if (continueButton != null) continueButton.gameObject.SetActive(false);
+        if (retryButton != null) retryButton.gameObject.SetActive(false);
+    }
+
     void Awake()
     {
-        continueButton.gameObject.SetActive(false);
-        retryButton.gameObject.SetActive(false);
+        if (continueButton != null) continueButton.gameObject.SetActive(false);
+        if (retryButton != null) retryButton.gameObject.SetActive(false);
     }
 
     // Hook this to GameTimer -> On Time Up ()
@@ -33,16 +41,15 @@ public class SportEndPanel : MonoBehaviour
         bool isCircuitMode = CircuitFlowManager.Instance != null &&
                              CircuitFlowManager.Instance.CurrentMode == GameMode.Circuit;
 
-        continueButton.gameObject.SetActive(isCircuitMode);
-        retryButton.gameObject.SetActive(!isCircuitMode);
+        if (continueButton != null) continueButton.gameObject.SetActive(isCircuitMode);
+        if (retryButton != null) retryButton.gameObject.SetActive(!isCircuitMode);
 
-        if (isCircuitMode)
+        if (isCircuitMode && SaveManager.Instance != null && SaveManager.Instance.CurrentRunData != null)
         {
             CircuitSaveData run = SaveManager.Instance.CurrentRunData;
             SaveManager.Instance.SaveSportScore(run, run.currentIndex, finalScore);
             SaveManager.Instance.LogScores("SPORT FINISHED - SAVED", run);
         }
-
     }
 
     // Hook this to the "Continue" button OnClick()

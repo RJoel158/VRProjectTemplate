@@ -84,15 +84,15 @@ namespace Golf.Environment
                 Destroy(meshCol);
             }
 
-            // Usar BoxCollider volumetrico como trigger de fuera de pista bajo el agua
+            // Usar BoxCollider volumetrico como trigger de fuera de pista bajo el agua (nivel superior en Y = -0.20m, 25cm debajo de la pista)
             var boxCol = waterPlane.GetComponent<BoxCollider>();
             if (boxCol == null)
             {
                 boxCol = waterPlane.AddComponent<BoxCollider>();
             }
             boxCol.isTrigger = true;
-            boxCol.size = new Vector3(120f, 2.5f, 120f);
-            boxCol.center = new Vector3(0f, -0.6f, 0f);
+            boxCol.size = new Vector3(150f, 4.8f, 150f);
+            boxCol.center = new Vector3(0f, -2.0f, 0f);
 
             if (waterPlane.GetComponent<OutOfBoundsTrigger>() == null)
             {
