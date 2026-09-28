@@ -13,7 +13,7 @@ namespace Tiro.Editor
     [InitializeOnLoad]
     public static class ShootingScoreboardStandardizer
     {
-        private const string PrefKey = "ShootingScoreboardStandardized_v3";
+        private const string PrefKey = "ShootingScoreboardStandardized_v4";
         private const string ShootingScenePath = "Assets/00_Scenes/ShootingScene.unity";
         private const string WhiteboardSpritePath = "Assets/03_Resources/Images/Gemini_Generated_Image_jp3lyejp3lyejp3l-removebg-preview.png";
         private const string ContmFontPath = "Assets/03_Resources/Font/contm SDF.asset";
@@ -178,9 +178,9 @@ namespace Tiro.Editor
 
             bannerObj.SetActive(false);
 
-            // 8. Botones Continuar y Reintentar (SportEndPanel)
-            Button continueBtn = GetOrCreateButton(scoreboardObj.transform, "ContinueButton", "CONTINUAR", new Vector2(-140f, -145f), new Color(0.12f, 0.72f, 0.88f, 1f));
-            Button retryBtn = GetOrCreateButton(scoreboardObj.transform, "RetryButton", "REINTENTAR", new Vector2(140f, -145f), new Color(0.95f, 0.55f, 0.15f, 1f));
+            // 8. Botones Continuar y Reintentar (SportEndPanel) centrados y estilizados
+            Button continueBtn = GetOrCreateButton(scoreboardObj.transform, "ContinueButton", "CONTINUAR", new Vector2(0f, -145f), new Color(0.12f, 0.72f, 0.88f, 1f));
+            Button retryBtn = GetOrCreateButton(scoreboardObj.transform, "RetryButton", "REINTENTAR", new Vector2(0f, -145f), new Color(0.95f, 0.55f, 0.15f, 1f));
 
             continueBtn.gameObject.SetActive(false);
             retryBtn.gameObject.SetActive(false);
@@ -227,13 +227,13 @@ namespace Tiro.Editor
                 }
             }
 
-            // 11. Eliminar o desactivar SportEndPanels duplicados en la escena
+            // 11. Eliminar SportEndPanels duplicados en la escena para evitar conflictos
             var allEndPanels = Object.FindObjectsByType<SportEndPanel>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var ep in allEndPanels)
             {
                 if (ep != sportEndPanel)
                 {
-                    ep.gameObject.SetActive(false);
+                    Undo.DestroyObjectImmediate(ep.gameObject);
                 }
             }
 
@@ -303,7 +303,7 @@ namespace Tiro.Editor
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = pos;
-            rect.sizeDelta = new Vector2(200f, 55f);
+            rect.sizeDelta = new Vector2(300f, 60f);
 
             var img = btnGo.GetComponent<Image>();
             if (img == null) img = btnGo.AddComponent<Image>();

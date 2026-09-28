@@ -46,8 +46,33 @@ public class SportEndPanel : MonoBehaviour
         bool isCircuitMode = CircuitFlowManager.Instance != null &&
                              CircuitFlowManager.Instance.CurrentMode == GameMode.Circuit;
 
-        if (continueButton != null) continueButton.gameObject.SetActive(isCircuitMode);
-        if (retryButton != null) retryButton.gameObject.SetActive(!isCircuitMode);
+        if (continueButton != null)
+        {
+            continueButton.gameObject.SetActive(isCircuitMode);
+            if (isCircuitMode)
+            {
+                var rt = continueButton.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchoredPosition = new Vector2(0f, rt.anchoredPosition.y);
+                    rt.sizeDelta = new Vector2(300f, 60f);
+                }
+            }
+        }
+
+        if (retryButton != null)
+        {
+            retryButton.gameObject.SetActive(!isCircuitMode);
+            if (!isCircuitMode)
+            {
+                var rt = retryButton.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchoredPosition = new Vector2(0f, rt.anchoredPosition.y);
+                    rt.sizeDelta = new Vector2(300f, 60f);
+                }
+            }
+        }
 
         if (isCircuitMode && SaveManager.Instance != null && SaveManager.Instance.CurrentRunData != null)
         {
@@ -58,7 +83,12 @@ public class SportEndPanel : MonoBehaviour
             if (run.currentIndex >= run.sportOrder.Length)
             {
                 var tmp = continueButton != null ? continueButton.GetComponentInChildren<TMPro.TextMeshProUGUI>() : null;
-                if (tmp != null) tmp.text = "VER TABLA GLOBAL";
+                if (tmp != null)
+                {
+                    tmp.text = "VER TABLA GLOBAL";
+                    tmp.fontSize = 24f;
+                    tmp.alignment = TMPro.TextAlignmentOptions.Center;
+                }
             }
         }
     }
