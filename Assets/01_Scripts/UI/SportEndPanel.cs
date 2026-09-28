@@ -22,9 +22,14 @@ public class SportEndPanel : MonoBehaviour
         if (retryButton != null) retryButton.gameObject.SetActive(false);
     }
 
+    private bool hasEnded = false;
+
     // Hook this to GameTimer -> On Time Up ()
     public void OnTimeUp()
     {
+        if (hasEnded) return;
+        hasEnded = true;
+
         int finalScore = 0;
 
         if (ScoreManager.Instance != null)
@@ -49,6 +54,12 @@ public class SportEndPanel : MonoBehaviour
             CircuitSaveData run = SaveManager.Instance.CurrentRunData;
             SaveManager.Instance.SaveSportScore(run, run.currentIndex, finalScore);
             SaveManager.Instance.LogScores("SPORT FINISHED - SAVED", run);
+
+            if (run.currentIndex >= run.sportOrder.Length)
+            {
+                var tmp = continueButton != null ? continueButton.GetComponentInChildren<TMPro.TextMeshProUGUI>() : null;
+                if (tmp != null) tmp.text = "VER TABLA GLOBAL";
+            }
         }
     }
 
@@ -57,9 +68,9 @@ public class SportEndPanel : MonoBehaviour
     {
         Debug.Log("OnContinuePressed called");
 
-        CircuitSaveData run = SaveManager.Instance.CurrentRunData;
+        CircuitSaveData run = SaveManager.Instance != null ? SaveManager.Instance.CurrentRunData : null;
 
-        if (run.currentIndex >= run.sportOrder.Length)
+        if (run != null && run.currentIndex >= run.sportOrder.Length)
         {
             int total = 0;
             string breakdown = "";
@@ -70,10 +81,15 @@ public class SportEndPanel : MonoBehaviour
             }
             Debug.Log($"CIRCUIT COMPLETE!\n{breakdown}TOTAL SCORE: {total}");
 
+            CircuitRunRecord record = SaveManager.Instance.RecordCompletedCircuit(run);
             SaveManager.Instance.DeleteCircuitSave();
-            continueButton.gameObject.SetActive(false);
+
+            if (continueButton != null) continueButton.gameObject.SetActive(false);
+            if (retryButton != null) retryButton.gameObject.SetActive(false);
+
+            CircuitLeaderboardUI.ShowOnActiveWhiteboard(record);
         }
-        else
+        else if (run != null)
         {
             CircuitFlowManager.Instance.LoadSportByIndex(run.currentIndex);
         }
