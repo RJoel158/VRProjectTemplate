@@ -91,16 +91,30 @@ public class CircuitLeaderboardUI : MonoBehaviour
         int rank = SaveManager.Instance != null ? SaveManager.Instance.GetRunRank(currentRecord, history) : 1;
         int totalRuns = history.records != null ? history.records.Count : 1;
 
-        // 1. Header Title
-        CreateTMP(parent, "HeaderTitle", new Vector2(0f, 195f), new Vector2(850f, 50f),
-            "CIRCUITO COMPLETADO - TABLA DE RÉCORDS", 34f, font, accentNavy, FontStyles.Bold, TextAlignmentOptions.Center);
+        // 1. Solid Whiteboard Card Background ("El Cuadro")
+        GameObject bgCard = new GameObject("Leaderboard_BgCard");
+        bgCard.transform.SetParent(parent, false);
+        var bgCardRect = bgCard.AddComponent<RectTransform>();
+        bgCardRect.anchoredPosition = new Vector2(0f, 0f);
+        bgCardRect.sizeDelta = new Vector2(870f, 450f);
 
-        // 2. Summary Card Banner
+        var bgCardImg = bgCard.AddComponent<Image>();
+        bgCardImg.color = new Color(0.97f, 0.98f, 1.0f, 0.98f);
+
+        var bgOutline = bgCard.AddComponent<Outline>();
+        bgOutline.effectColor = new Color(0.12f, 0.20f, 0.32f, 0.45f);
+        bgOutline.effectDistance = new Vector2(2f, -2f);
+
+        // 2. Header Title
+        CreateTMP(parent, "HeaderTitle", new Vector2(0f, 190f), new Vector2(850f, 45f),
+            "CIRCUITO COMPLETADO - TABLA DE RÉCORDS", 32f, font, accentNavy, FontStyles.Bold, TextAlignmentOptions.Center);
+
+        // 3. Summary Card Banner
         GameObject summaryBanner = new GameObject("SummaryBanner");
         summaryBanner.transform.SetParent(parent, false);
         var sumRect = summaryBanner.AddComponent<RectTransform>();
         sumRect.anchoredPosition = new Vector2(0f, 122f);
-        sumRect.sizeDelta = new Vector2(820f, 80f);
+        sumRect.sizeDelta = new Vector2(820f, 75f);
 
         var sumImg = summaryBanner.AddComponent<Image>();
         sumImg.color = rank == 1 ? new Color(1.0f, 0.95f, 0.80f, 0.95f) : new Color(0.92f, 0.95f, 0.98f, 0.95f);
@@ -114,37 +128,37 @@ public class CircuitLeaderboardUI : MonoBehaviour
         string rankBadge = rank == 1 ? "¡NUEVO RÉCORD HISTÓRICO!" : $"Puesto #{rank} de {totalRuns}";
         int myTotal = currentRecord != null ? currentRecord.totalScore : 0;
 
-        CreateTMP(summaryBanner.transform, "SummaryScore", new Vector2(0f, 15f), new Vector2(790f, 36f),
-            $"TU RUN:  {myTotal} PTS   |   {rankBadge}", 26f, font, accentNavy, FontStyles.Bold, TextAlignmentOptions.Center);
+        CreateTMP(summaryBanner.transform, "SummaryScore", new Vector2(0f, 14f), new Vector2(790f, 34f),
+            $"TU RUN:  {myTotal} PTS   |   {rankBadge}", 25f, font, accentNavy, FontStyles.Bold, TextAlignmentOptions.Center);
 
         int bsk = currentRecord != null ? currentRecord.basketScore : 0;
         int bowl = currentRecord != null ? currentRecord.bowlingScore : 0;
         int golf = currentRecord != null ? currentRecord.golfScore : 0;
         int tiro = currentRecord != null ? currentRecord.shootingScore : 0;
 
-        CreateTMP(summaryBanner.transform, "SummaryBreakdown", new Vector2(0f, -18f), new Vector2(790f, 30f),
-            $"Basket: {bsk} pts   |   Bolos: {bowl} pts   |   Golf: {golf} pts   |   Tiro: {tiro} pts", 20f, font, charcoal, FontStyles.Normal, TextAlignmentOptions.Center);
+        CreateTMP(summaryBanner.transform, "SummaryBreakdown", new Vector2(0f, -16f), new Vector2(790f, 28f),
+            $"Basket: {bsk} pts   |   Bolos: {bowl} pts   |   Golf: {golf} pts   |   Tiro: {tiro} pts", 19f, font, charcoal, FontStyles.Normal, TextAlignmentOptions.Center);
 
-        // 3. Table Header Bar
+        // 4. Table Header Bar
         GameObject tableHeader = new GameObject("TableHeader");
         tableHeader.transform.SetParent(parent, false);
         var thRect = tableHeader.AddComponent<RectTransform>();
-        thRect.anchoredPosition = new Vector2(0f, 54f);
+        thRect.anchoredPosition = new Vector2(0f, 56f);
         thRect.sizeDelta = new Vector2(820f, 32f);
 
         var thImg = tableHeader.AddComponent<Image>();
         thImg.color = new Color(0.12f, 0.20f, 0.32f, 1f);
 
-        // Cell-based alignment for table header
-        CreateRowCells(tableHeader.transform, "POS", "RUN / FECHA", "BASKET", "BOLOS", "GOLF", "TIRO", "TOTAL", font, Color.white, FontStyles.Bold, 18f);
+        // Cell-based alignment for table header (Symmetrical 800px span inside 820px bar)
+        CreateRowCells(tableHeader.transform, "POS", "RUN / FECHA", "BASKET", "BOLOS", "GOLF", "TIRO", "TOTAL", font, Color.white, FontStyles.Bold, 17f);
 
-        // 4. Table Rows (Top 4 Runs)
+        // 5. Table Rows (Top 4-5 Runs)
         List<CircuitRunRecord> sortedRuns = new List<CircuitRunRecord>(history.records);
         sortedRuns.Sort((a, b) => b.totalScore.CompareTo(a.totalScore));
-        int rowsToShow = Mathf.Min(sortedRuns.Count, 4);
+        int rowsToShow = Mathf.Min(sortedRuns.Count, 5);
 
-        float rowStartY = 18f;
-        float rowSpacing = 31f;
+        float rowStartY = 22f;
+        float rowSpacing = 30f;
 
         for (int i = 0; i < rowsToShow; i++)
         {
@@ -155,7 +169,7 @@ public class CircuitLeaderboardUI : MonoBehaviour
             rowObj.transform.SetParent(parent, false);
             var rRect = rowObj.AddComponent<RectTransform>();
             rRect.anchoredPosition = new Vector2(0f, rowStartY - (i * rowSpacing));
-            rRect.sizeDelta = new Vector2(820f, 28f);
+            rRect.sizeDelta = new Vector2(820f, 27f);
 
             var rImg = rowObj.AddComponent<Image>();
             rImg.color = isCurrent ? new Color(0.2f, 0.7f, 0.95f, 0.28f) : (i % 2 == 0 ? new Color(0.95f, 0.95f, 0.95f, 0.65f) : new Color(0.88f, 0.88f, 0.88f, 0.45f));
@@ -173,43 +187,44 @@ public class CircuitLeaderboardUI : MonoBehaviour
             FontStyles style = isCurrent ? FontStyles.Bold : FontStyles.Normal;
 
             // Individual column cells matching Header coordinates
-            CreateRowCells(rowObj.transform, rankStr, nameStr, r.basketScore.ToString(), r.bowlingScore.ToString(), r.golfScore.ToString(), r.shootingScore.ToString(), $"{r.totalScore} pts", font, textColor, style, 17f);
+            CreateRowCells(rowObj.transform, rankStr, nameStr, r.basketScore.ToString(), r.bowlingScore.ToString(), r.golfScore.ToString(), r.shootingScore.ToString(), $"{r.totalScore} pts", font, textColor, style, 16f);
         }
 
-        // 5. Action Buttons (Bottom)
+        // 6. Action Buttons (Bottom)
         CreateActionButton(parent, "RetryCircuitButton", "REINTENTAR CIRCUITO",
-            new Vector2(-170f, -175f), new Vector2(280f, 58f), new Color(0.10f, 0.62f, 0.82f, 1f), font, OnRetryCircuitClicked);
+            new Vector2(-165f, -175f), new Vector2(270f, 54f), new Color(0.10f, 0.62f, 0.82f, 1f), font, OnRetryCircuitClicked);
 
         CreateActionButton(parent, "MenuButton", "VOLVER AL MENÚ",
-            new Vector2(170f, -175f), new Vector2(280f, 58f), new Color(0.92f, 0.44f, 0.16f, 1f), font, OnBackToMenuClicked);
+            new Vector2(165f, -175f), new Vector2(270f, 54f), new Color(0.92f, 0.44f, 0.16f, 1f), font, OnBackToMenuClicked);
     }
 
     /// <summary>
     /// Creates individual text cells for each column with fixed anchored X positions,
-    /// guaranteeing 100% vertical alignment between headers and rows regardless of font proportionality.
+    /// guaranteeing 100% horizontal symmetry and vertical alignment across the 820px card.
+    /// Usable span: [-400, +400] (10px margin on each side).
     /// </summary>
     private static void CreateRowCells(Transform rowParent, string colPos, string colDate, string colBasket, string colBolos, string colGolf, string colTiro, string colTotal, TMP_FontAsset font, Color textColor, FontStyles fontStyle, float fontSize)
     {
-        // 1. POS (center)
-        CreateCellTMP(rowParent, "Col_POS", new Vector2(-355f, 0f), new Vector2(70f, 26f), colPos, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
+        // 1. POS: width 60, span [-400, -340], center -370
+        CreateCellTMP(rowParent, "Col_POS", new Vector2(-370f, 0f), new Vector2(60f, 26f), colPos, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
 
-        // 2. RUN / FECHA (left-aligned)
-        CreateCellTMP(rowParent, "Col_Date", new Vector2(-235f, 0f), new Vector2(150f, 26f), colDate, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Left);
+        // 2. RUN / FECHA: width 170, span [-330, -160], center -245
+        CreateCellTMP(rowParent, "Col_Date", new Vector2(-245f, 0f), new Vector2(170f, 26f), colDate, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Left);
 
-        // 3. BASKET (center)
-        CreateCellTMP(rowParent, "Col_Basket", new Vector2(-115f, 0f), new Vector2(80f, 26f), colBasket, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
+        // 3. BASKET: width 90, span [-150, -60], center -105
+        CreateCellTMP(rowParent, "Col_Basket", new Vector2(-105f, 0f), new Vector2(90f, 26f), colBasket, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
 
-        // 4. BOLOS (center)
-        CreateCellTMP(rowParent, "Col_Bolos", new Vector2(-25f, 0f), new Vector2(80f, 26f), colBolos, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
+        // 4. BOLOS: width 90, span [-50, +40], center -5
+        CreateCellTMP(rowParent, "Col_Bolos", new Vector2(-5f, 0f), new Vector2(90f, 26f), colBolos, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
 
-        // 5. GOLF (center)
-        CreateCellTMP(rowParent, "Col_Golf", new Vector2(65f, 0f), new Vector2(80f, 26f), colGolf, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
+        // 5. GOLF: width 90, span [+50, +140], center +95
+        CreateCellTMP(rowParent, "Col_Golf", new Vector2(95f, 0f), new Vector2(90f, 26f), colGolf, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
 
-        // 6. TIRO (center)
-        CreateCellTMP(rowParent, "Col_Tiro", new Vector2(155f, 0f), new Vector2(80f, 26f), colTiro, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
+        // 6. TIRO: width 90, span [+150, +240], center +195
+        CreateCellTMP(rowParent, "Col_Tiro", new Vector2(195f, 0f), new Vector2(90f, 26f), colTiro, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
 
-        // 7. TOTAL (center)
-        CreateCellTMP(rowParent, "Col_Total", new Vector2(275f, 0f), new Vector2(120f, 26f), colTotal, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
+        // 7. TOTAL: width 150, span [+250, +400], center +325
+        CreateCellTMP(rowParent, "Col_Total", new Vector2(325f, 0f), new Vector2(150f, 26f), colTotal, fontSize, font, textColor, fontStyle, TextAlignmentOptions.Center);
     }
 
     private static TextMeshProUGUI CreateCellTMP(Transform parent, string name, Vector2 pos, Vector2 size,

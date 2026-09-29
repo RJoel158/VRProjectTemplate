@@ -89,8 +89,12 @@ public class SportCircuitRuntimeInitializer : MonoBehaviour
             Debug.Log($"[{sceneName}] Runtime: Added TrackedDeviceGraphicRaycaster to {canvas.name}.");
         }
 
-        // 4. Ensure SportEndPanel
-        var sportEndPanel = Object.FindFirstObjectByType<SportEndPanel>(FindObjectsInactive.Include);
+        // 4. Ensure SportEndPanel on the target Canvas
+        var sportEndPanel = canvas.GetComponent<SportEndPanel>();
+        if (sportEndPanel == null)
+        {
+            sportEndPanel = Object.FindFirstObjectByType<SportEndPanel>();
+        }
         if (sportEndPanel == null)
         {
             var panelGo = new GameObject("SportEndPanel");
@@ -98,13 +102,23 @@ public class SportCircuitRuntimeInitializer : MonoBehaviour
             Debug.Log($"[{sceneName}] Runtime: Created SportEndPanel.");
         }
 
+        // Clean up any duplicate or disconnected SportEndPanels
+        var allEndPanels = Object.FindObjectsByType<SportEndPanel>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var ep in allEndPanels)
+        {
+            if (ep != sportEndPanel && ep.gameObject != canvas.gameObject)
+            {
+                Object.Destroy(ep.gameObject);
+            }
+        }
+
         // 5. Ensure Buttons
         var continueBtn = canvas.transform.Find("ContinueButton")?.GetComponent<Button>();
         var retryBtn = canvas.transform.Find("RetryButton")?.GetComponent<Button>();
 
         bool isWhiteboard = canvas.name.Contains("Scoreboard") || sceneName == "GolfScene" || sceneName == "ShootingScene";
-        Vector2 contPos = isWhiteboard ? new Vector2(-140, -145) : new Vector2(-160, -430);
-        Vector2 retPos = isWhiteboard ? new Vector2(140, -145) : new Vector2(160, -430);
+        Vector2 contPos = isWhiteboard ? new Vector2(0, -145) : new Vector2(0, -430);
+        Vector2 retPos = isWhiteboard ? new Vector2(0, -145) : new Vector2(0, -430);
 
         if (sceneName == "GolfScene")
         {
@@ -202,7 +216,7 @@ public class SportCircuitRuntimeInitializer : MonoBehaviour
         rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.pivot = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = anchoredPos;
-        rt.sizeDelta = new Vector2(240, 60);
+        rt.sizeDelta = new Vector2(300, 60);
         rt.localScale = Vector3.one;
 
         var image = btnGo.AddComponent<Image>();
